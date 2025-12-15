@@ -1,65 +1,424 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState } from "react";
+import { useNodes, useNetworkStats } from "@/hooks";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardDescription,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import type { NodeStatus } from "@/types";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Legend,
+} from "recharts";
+
+function formatLastSeen(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
+}
+
+export default function DashboardPage() {
+  const {
+    data: nodes,
+    isLoading: nodesLoading,
+    error: nodesError,
+  } = useNodes();
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    error: statsError,
+  } = useNetworkStats();
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  // Loading state
+  if (nodesLoading || statsLoading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold">Xandeum Network Analytics</h1>
+            <p className="text-muted-foreground">Loading network data...</p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <div className="bg-muted h-4 w-24 animate-pulse rounded" />
+                </CardHeader>
+                <CardContent>
+                  <div className="bg-muted h-8 w-16 animate-pulse rounded" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (nodesError || statsError) {
+    return (
+      <div className="container mx-auto p-6">
+        <Card className="border-destructive">
+          <CardHeader>
+            <CardTitle className="text-destructive">
+              Error Loading Data
+            </CardTitle>
+            <CardDescription>
+              {nodesError?.message ||
+                statsError?.message ||
+                "Failed to load network data"}
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  // No data state
+  if (!nodes || !stats) {
+    return (
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>No Data Available</CardTitle>
+            <CardDescription>Unable to fetch network data</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  // Helper functions
+  const getStatusBadge = (status: NodeStatus) => {
+    const variants = {
+      active: "default",
+      inactive: "destructive",
+      syncing: "secondary",
+    } as const;
+    return (
+      <Badge variant={variants[status]} className="capitalize">
+        {status}
+      </Badge>
+    );
+  };
+
+  const truncateKey = (key: string) => {
+    if (key.length <= 16) return key;
+    return `${key.slice(0, 8)}...${key.slice(-8)}`;
+  };
+
+  const formatUptime = (uptime: number) => `${uptime.toFixed(1)}%`;
+
+  // Filter nodes based on search and status
+  const filteredNodes = nodes.filter((node) => {
+    const matchesSearch =
+      searchQuery === "" ||
+      node.publicKey.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      node.ipAddress.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesStatus =
+      statusFilter === "all" || node.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  // Chart data
+  const statusData = [
+    {
+      name: "Active",
+      value: stats.activeNodes,
+      fill: "var(--chart-1)",
+    },
+    {
+      name: "Inactive",
+      value: stats.inactiveNodes,
+      fill: "var(--chart-2)",
+    },
+    {
+      name: "Syncing",
+      value: nodes.filter((n) => n.status === "syncing").length,
+      fill: "var(--chart-3)",
+    },
+  ].filter((item) => item.value > 0);
+
+  const storageData = [
+    {
+      name: "Storage",
+      total: stats.totalStorage / 1024 ** 3,
+      used: stats.usedStorage / 1024 ** 3,
+    },
+  ];
+
+  const chartConfig = {
+    total: {
+      label: "Total Capacity",
+      color: "var(--chart-1)",
+    },
+    used: {
+      label: "Used",
+      color: "var(--chart-2)",
+    },
+  } satisfies ChartConfig;
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+    <div className="container mx-auto space-y-6 p-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold">Xandeum Network Analytics</h1>
+        <p className="text-muted-foreground">
+          Real-time monitoring of the Xandeum network
+        </p>
+      </div>
+
+      {/* Stat Cards */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-muted-foreground text-sm font-medium">
+              Total Nodes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalNodes}</div>
+            <p className="text-muted-foreground mt-1 text-xs">
+              Network participants
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-muted-foreground text-sm font-medium">
+              Active Nodes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <div className="text-2xl font-bold">{stats.activeNodes}</div>
+              <Badge variant="default">
+                {((stats.activeNodes / stats.totalNodes) * 100).toFixed(1)}%
+              </Badge>
+            </div>
+            <p className="text-muted-foreground mt-1 text-xs">
+              Currently online
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-muted-foreground text-sm font-medium">
+              Network Health
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {stats.networkHealth.toFixed(1)}
+            </div>
+            <p className="text-muted-foreground mt-1 text-xs">
+              Health score (0-100)
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-muted-foreground text-sm font-medium">
+              Average Uptime
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatUptime(stats.averageUptime)}
+            </div>
+            <p className="text-muted-foreground mt-1 text-xs">
+              Network average
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Separator />
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Status Distribution Pie Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Node Status Distribution</CardTitle>
+            <CardDescription>
+              Current status of all network nodes
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={chartConfig} className="h-75">
+              <PieChart>
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Pie
+                  data={statusData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  label={(entry) => `${entry.name}: ${entry.value}`}>
+                  {statusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <Legend />
+              </PieChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        {/* Storage Usage Bar Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Storage Usage</CardTitle>
+            <CardDescription>Total capacity vs used storage</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={chartConfig} className="h-75">
+              <BarChart data={storageData}>
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Legend />
+                <Bar
+                  dataKey="total"
+                  fill="var(--color-total)"
+                  name="Total Capacity (GB)"
+                  radius={[4, 4, 0, 0]}
+                />
+                <Bar
+                  dataKey="used"
+                  fill="var(--color-used)"
+                  name="Used (GB)"
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Separator />
+
+      {/* Nodes Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Network Nodes</CardTitle>
+          <CardDescription>
+            Showing {filteredNodes.length} of {nodes.length} nodes
+          </CardDescription>
+          <div className="mt-4 flex gap-4">
+            <Input
+              placeholder="Search by public key or IP..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="max-w-sm"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-45">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+                <SelectItem value="syncing">Syncing</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Public Key</TableHead>
+                  <TableHead>IP Address</TableHead>
+                  <TableHead>Port</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Version</TableHead>
+                  <TableHead>Uptime</TableHead>
+                  <TableHead>Last Seen</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredNodes.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={7}
+                      className="text-muted-foreground text-center">
+                      No nodes found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredNodes.map((node) => (
+                    <TableRow key={node.id}>
+                      <TableCell className="font-mono text-sm">
+                        {truncateKey(node.publicKey)}
+                      </TableCell>
+                      <TableCell>{node.ipAddress}</TableCell>
+                      <TableCell>{node.port}</TableCell>
+                      <TableCell>{getStatusBadge(node.status)}</TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {node.version}
+                      </TableCell>
+                      <TableCell>{formatUptime(node.uptime)}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {formatLastSeen(node.lastSeen)}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
