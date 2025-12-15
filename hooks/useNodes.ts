@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { apiService } from "../services/api.service";
-import type { PNode } from "../types";
+import { apiService } from "@/services/api.service";
+import type { PNode } from "@/types";
 
 export function useNodes() {
   return useQuery<PNode[], Error>({

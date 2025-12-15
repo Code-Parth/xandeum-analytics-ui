@@ -4,22 +4,13 @@ import type {
   PodResponse,
   RPCResponse,
   NodeStatus,
-} from "../types";
+} from "@/types";
 
 class XandeumAPIService {
   private rpcUrl: string;
 
   constructor() {
-    // Development: Use localhost:3001
-    // Production: Use environment variable
-    const isDevelopment = process.env.NODE_ENV === "development";
-
-    if (isDevelopment) {
-      this.rpcUrl = "http://localhost:3001/api/rpc";
-    } else {
-      this.rpcUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/rpc";
-    }
+    this.rpcUrl = "/api/rpc";
   }
 
   /**

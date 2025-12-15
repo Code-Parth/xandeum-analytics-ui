@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { apiService } from "../services/api.service";
+import { apiService } from "@/services/api.service";
 
 export function useHealthCheck() {
   return useQuery<{ status: "ok" | "degraded" | "down" }, Error>({

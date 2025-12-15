@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { apiService } from "../services/api.service";
-import type { NetworkStats } from "../types";
+import { apiService } from "@/services/api.service";
+import type { NetworkStats } from "@/types";
 
 export function useNetworkStats() {
   return useQuery<NetworkStats, Error>({
