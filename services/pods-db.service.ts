@@ -152,7 +152,7 @@ export class PodsDbService {
             "total_nodes",
           ),
           activeNodes:
-            sql<number>`count(distinct case when ${podsSnapshot.isPublic} = true and ${podsSnapshot.pubkey} is not null then ${podsSnapshot.address} end)`.as(
+            sql<number>`count(distinct case when ${podsSnapshot.isPublic} = true and ${podsSnapshot.pubkey} is not null and (EXTRACT(EPOCH FROM ${podsSnapshot.snapshotTimestamp}) - ${podsSnapshot.lastSeenTimestamp}) <= 120 then ${podsSnapshot.address} end)`.as(
               "active_nodes",
             ),
           avgUptime: sql<number>`avg(${podsSnapshot.uptime})`.as("avg_uptime"),

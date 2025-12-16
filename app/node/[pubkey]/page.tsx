@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Line, LineChart, XAxis, YAxis, Legend } from "recharts";
+import { formatBytes } from "@/lib/utils";
 import type { NodeStatus } from "@/types";
 
 function formatLastSeen(date: Date | undefined) {
@@ -65,10 +66,21 @@ function formatTimestampLabel(value: unknown) {
   });
 }
 
-const chartConfig = {
+const latencyChartConfig = {
   latency: {
     label: "Latency (s since last seen)",
     color: "var(--chart-1)",
+  },
+} satisfies ChartConfig;
+
+const storageChartConfig = {
+  committed: {
+    label: "Committed",
+    color: "var(--chart-1)",
+  },
+  used: {
+    label: "Used",
+    color: "var(--chart-2)",
   },
 } satisfies ChartConfig;
 
@@ -100,6 +112,25 @@ export default function NodeDetailPage() {
       timestamp: point.timestamp,
       latencySeconds: Number((point.latencyMs / 1000).toFixed(2)),
     })) || [];
+
+  const storageData =
+    metrics
+      ?.map((point) => {
+        const committed = point.storageCapacityBytes ?? 0;
+        const used = point.storageUsedBytes ?? 0;
+        if (!committed && !used) {
+          return null;
+        }
+        return {
+          timestamp: point.timestamp,
+          committed: committed / 1024 ** 3,
+          used: used / 1024 ** 3,
+        };
+      })
+      .filter(
+        (v): v is { timestamp: Date; committed: number; used: number } =>
+          v !== null,
+      ) || [];
 
   const availableVersions =
     versions.length > 0 ? versions : node?.version ? [node.version] : [];
@@ -325,20 +356,18 @@ export default function NodeDetailPage() {
                 );
                 if (!totalCommitted && !totalUsed) return null;
 
-                const toGB = (bytes: number) => (bytes / 1024 ** 3).toFixed(2);
-
                 return (
                   <>
                     <span>
                       Total committed:{" "}
                       <span className="text-foreground font-medium">
-                        {toGB(totalCommitted)} GB
+                        {formatBytes(totalCommitted)}
                       </span>
                     </span>
                     <span>
                       Total used:{" "}
                       <span className="text-foreground font-medium">
-                        {toGB(totalUsed)} GB
+                        {formatBytes(totalUsed)}
                       </span>
                     </span>
                   </>
@@ -356,8 +385,6 @@ export default function NodeDetailPage() {
                   return null;
                 }
 
-                const toGB = (bytes: number) => (bytes / 1024 ** 3).toFixed(2);
-
                 return (
                   <div
                     key={`storage-${n.id}`}
@@ -369,13 +396,13 @@ export default function NodeDetailPage() {
                       <span>
                         Committed:{" "}
                         <span className="text-foreground font-medium">
-                          {toGB(capacity)} GB
+                          {formatBytes(capacity)}
                         </span>
                       </span>
                       <span>
                         Used:{" "}
                         <span className="text-foreground font-medium">
-                          {toGB(used)} GB
+                          {formatBytes(used)}
                         </span>
                       </span>
                       {percent !== undefined && (
@@ -409,7 +436,7 @@ export default function NodeDetailPage() {
               No metrics available for this range.
             </div>
           ) : (
-            <ChartContainer config={chartConfig} className="h-80">
+            <ChartContainer config={latencyChartConfig} className="h-80">
               <LineChart data={latencyData}>
                 <ChartTooltip
                   content={
@@ -434,6 +461,70 @@ export default function NodeDetailPage() {
                   dataKey="latencySeconds"
                   name="Latency (s)"
                   stroke="var(--chart-1)"
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={false}
+                />
+              </LineChart>
+            </ChartContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Storage Usage</CardTitle>
+          <CardDescription>Committed vs used storage over time</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {metricsError ? (
+            <div className="text-destructive text-sm">
+              Failed to load metrics: {metricsError.message}
+            </div>
+          ) : metricsLoading ? (
+            <div className="bg-muted h-64 w-full animate-pulse rounded" />
+          ) : storageData.length === 0 ? (
+            <div className="text-muted-foreground text-sm">
+              No storage metrics available for this range.
+            </div>
+          ) : (
+            <ChartContainer config={storageChartConfig} className="h-80">
+              <LineChart data={storageData}>
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      labelFormatter={formatTimestampLabel}
+                    />
+                  }
+                />
+                <XAxis
+                  dataKey="timestamp"
+                  tickFormatter={(ts) =>
+                    new Date(ts).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  }
+                />
+                <YAxis
+                  tickFormatter={(v) => `${(v as number).toFixed(1)} GB`}
+                  allowDecimals
+                />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="committed"
+                  name="Committed (GB)"
+                  stroke="var(--chart-1)"
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={false}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="used"
+                  name="Used (GB)"
+                  stroke="var(--chart-2)"
                   strokeWidth={2}
                   dot={false}
                   activeDot={false}

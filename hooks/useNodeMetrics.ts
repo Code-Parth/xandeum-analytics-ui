@@ -24,11 +24,25 @@ function toMetricPoint(snapshot: PodSnapshot): NodeMetricPoint {
   const lastSeenMs = (snapshot.lastSeenTimestamp ?? 0) * 1000;
   const latencyMs = Math.max(0, snapshotTime.getTime() - lastSeenMs);
 
+  const storageCapacityBytes =
+    typeof snapshot.storageCommitted === "number"
+      ? snapshot.storageCommitted
+      : undefined;
+  const storageUsedBytes =
+    typeof snapshot.storageUsed === "number" ? snapshot.storageUsed : undefined;
+  const storageUsagePercent =
+    typeof snapshot.storageUsagePercent === "number"
+      ? snapshot.storageUsagePercent
+      : undefined;
+
   return {
     timestamp: snapshotTime,
     latencyMs,
     version: snapshot.version,
     uptime: snapshot.uptime ?? undefined,
+    storageCapacityBytes,
+    storageUsedBytes,
+    storageUsagePercent,
   };
 }
 

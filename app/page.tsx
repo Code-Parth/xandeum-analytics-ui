@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { formatBytes } from "@/lib/utils";
 import { useNodes, useNetworkStats, useNetworkHistory } from "@/hooks";
 import {
   Card,
@@ -47,6 +48,7 @@ import {
   LineChart,
   Line,
 } from "recharts";
+import { ThemeToggleButton } from "@/components/ui/theme-toggle-button";
 
 function formatLastSeen(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -156,78 +158,93 @@ export default function DashboardPage() {
 
   const formatUptime = (uptime: number) => `${uptime.toFixed(1)}%`;
 
-  // Group nodes by public key (one row per pubkey)
+  // Group nodes by public key (one row per pubkey).
+  // Nodes without a pubkey are grouped by their unique id (one row per address).
   const nodeGroups = (() => {
     const map = new Map<
       string,
       {
-        pubkey: string;
+        key: string;
+        pubkey: string | null;
         nodes: typeof nodes;
       }
     >();
 
     for (const node of nodes) {
-      const key = node.publicKey || "unknown";
-      const existing = map.get(key);
+      const groupKey = node.publicKey || node.id;
+      const existing = map.get(groupKey);
       if (existing) {
         existing.nodes.push(node);
       } else {
-        map.set(key, { pubkey: key, nodes: [node] });
+        map.set(groupKey, {
+          key: groupKey,
+          pubkey: node.publicKey,
+          nodes: [node],
+        });
       }
     }
 
-    return Array.from(map.values()).map(({ pubkey, nodes: groupNodes }) => {
-      const sortedByLastSeen = [...groupNodes].sort(
-        (a, b) => b.lastSeen.getTime() - a.lastSeen.getTime(),
-      );
-      const primary = sortedByLastSeen[0];
+    return Array.from(map.values()).map(
+      ({ key, pubkey, nodes: groupNodes }) => {
+        const sortedByLastSeen = [...groupNodes].sort(
+          (a, b) => b.lastSeen.getTime() - a.lastSeen.getTime(),
+        );
+        const primary = sortedByLastSeen[0];
 
-      const versionsSet = new Set(
-        groupNodes.map((n) => n.version).filter(Boolean),
-      );
-      const versions = Array.from(versionsSet);
+        const versionsSet = new Set(
+          groupNodes.map((n) => n.version).filter(Boolean),
+        );
+        const versions = Array.from(versionsSet);
 
-      const status: NodeStatus = groupNodes.some((n) => n.status === "active")
-        ? "active"
-        : groupNodes.some((n) => n.status === "syncing")
-          ? "syncing"
-          : "inactive";
+        const status: NodeStatus = groupNodes.some((n) => n.status === "active")
+          ? "active"
+          : groupNodes.some((n) => n.status === "syncing")
+            ? "syncing"
+            : "inactive";
 
-      const uptime =
-        groupNodes.length > 0
-          ? groupNodes.reduce((sum, n) => sum + n.uptime, 0) / groupNodes.length
-          : 0;
+        const uptime =
+          groupNodes.length > 0
+            ? groupNodes.reduce((sum, n) => sum + n.uptime, 0) /
+              groupNodes.length
+            : 0;
 
-      const lastSeen = sortedByLastSeen[0]?.lastSeen ?? new Date(0);
+        const lastSeen = sortedByLastSeen[0]?.lastSeen ?? new Date(0);
 
-      const totalStorageCapacity = groupNodes.reduce(
-        (sum, n) => sum + (n.performance?.storageCapacity || 0),
-        0,
-      );
-      const totalStorageUsed = groupNodes.reduce(
-        (sum, n) => sum + (n.performance?.storageUsed || 0),
-        0,
-      );
+        const totalStorageCapacity = groupNodes.reduce(
+          (sum, n) => sum + (n.performance?.storageCapacity || 0),
+          0,
+        );
+        const totalStorageUsed = groupNodes.reduce(
+          (sum, n) => sum + (n.performance?.storageUsed || 0),
+          0,
+        );
 
-      const addresses = groupNodes.map((n) => ({
-        id: n.id,
-        ipAddress: n.ipAddress,
-        port: n.port,
-      }));
+        const addresses = groupNodes.map((n) => ({
+          id: n.id,
+          ipAddress: n.ipAddress,
+          port: n.port,
+        }));
 
-      return {
-        pubkey,
-        primary,
-        status,
-        versions,
-        uptime,
-        lastSeen,
-        totalStorageCapacity,
-        totalStorageUsed,
-        addresses,
-      };
-    });
+        return {
+          key,
+          pubkey,
+          primary,
+          status,
+          versions,
+          uptime,
+          lastSeen,
+          totalStorageCapacity,
+          totalStorageUsed,
+          addresses,
+        };
+      },
+    );
   })();
+
+  // Calculate total unique public keys
+  const totalPublicKeys = new Set(
+    nodes.map((n) => n.publicKey).filter((pk): pk is string => !!pk),
+  ).size;
 
   // Filter groups based on search and status
   const filteredGroups = nodeGroups.filter((group) => {
@@ -235,7 +252,7 @@ export default function DashboardPage() {
 
     const matchesSearch =
       search === "" ||
-      group.pubkey.toLowerCase().includes(search) ||
+      (group.pubkey ?? "").toLowerCase().includes(search) ||
       group.addresses.some(({ ipAddress }) =>
         ipAddress.toLowerCase().includes(search),
       );
@@ -308,11 +325,28 @@ export default function DashboardPage() {
   return (
     <div className="container mx-auto space-y-6 p-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Xandeum Network Analytics</h1>
-        <p className="text-muted-foreground">
-          Real-time monitoring of the Xandeum network
-        </p>
+      <div className="flex w-full flex-row items-center justify-between">
+        <div className="flex-1">
+          <h1 className="text-3xl font-bold">Xandeum Network Analytics</h1>
+          <p className="text-muted-foreground">
+            Real-time monitoring of the Xandeum network
+          </p>
+          <div className="mt-3 flex gap-6">
+            <div>
+              <span className="text-muted-foreground text-sm">
+                Total Nodes:{" "}
+              </span>
+              <span className="font-semibold">{stats.totalNodes}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground text-sm">
+                Total Public Keys:{" "}
+              </span>
+              <span className="font-semibold">{totalPublicKeys}</span>
+            </div>
+          </div>
+        </div>
+        <ThemeToggleButton />
       </div>
 
       {/* Stat Cards */}
@@ -341,7 +375,10 @@ export default function DashboardPage() {
             <div className="flex items-center gap-2">
               <div className="text-2xl font-bold">{stats.activeNodes}</div>
               <Badge variant="default">
-                {((stats.activeNodes / stats.totalNodes) * 100).toFixed(1)}%
+                {stats.totalNodes > 0
+                  ? ((stats.activeNodes / stats.totalNodes) * 100).toFixed(1)
+                  : "0.0"}
+                %
               </Badge>
             </div>
             <p className="text-muted-foreground mt-1 text-xs">
@@ -641,13 +678,17 @@ export default function DashboardPage() {
                   </TableRow>
                 ) : (
                   filteredGroups.map((group) => (
-                    <TableRow key={group.pubkey}>
+                    <TableRow key={group.key}>
                       <TableCell className="font-mono text-sm">
-                        <Link
-                          href={`/node/${group.pubkey}`}
-                          className="text-primary hover:underline">
-                          {truncateKey(group.pubkey)}
-                        </Link>
+                        {group.pubkey ? (
+                          <Link
+                            href={`/node/${group.pubkey}`}
+                            className="text-primary hover:underline">
+                            {truncateKey(group.pubkey)}
+                          </Link>
+                        ) : (
+                          <span className="text-muted-foreground">Unknown</span>
+                        )}
                       </TableCell>
                       <TableCell className="space-y-1 text-xs">
                         {group.addresses.map((addr) => (
@@ -681,19 +722,13 @@ export default function DashboardPage() {
                       <TableCell className="text-muted-foreground text-xs">
                         {group.totalStorageCapacity || group.totalStorageUsed
                           ? (() => {
-                              const toGB = (bytes: number) =>
-                                (bytes / 1024 ** 3).toFixed(2);
-                              const usedGB = toGB(group.totalStorageUsed);
-                              const totalGB = toGB(group.totalStorageCapacity);
+                              const used = group.totalStorageUsed;
+                              const total = group.totalStorageCapacity;
                               const percent =
-                                group.totalStorageCapacity > 0
-                                  ? (group.totalStorageUsed /
-                                      group.totalStorageCapacity) *
-                                    100
-                                  : undefined;
+                                total > 0 ? (used / total) * 100 : undefined;
                               return (
                                 <span>
-                                  {usedGB} / {totalGB} GB
+                                  {formatBytes(used)} / {formatBytes(total)}
                                   {percent !== undefined &&
                                     !Number.isNaN(percent) && (
                                       <span> ({percent.toFixed(1)}%)</span>

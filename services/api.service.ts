@@ -167,7 +167,7 @@ class XandeumAPIService {
    * Get network statistics
    */
   async getNetworkStats(): Promise<NetworkStats> {
-    const nodes = await this.getAllNodes();
+    const nodes = await this.getAllNodesFromDB(); // Use DB for consistency with useNodes()
     return this.calculateStatsFromNodes(nodes);
   }
 
@@ -195,7 +195,9 @@ class XandeumAPIService {
       0,
     );
 
-    // Calculate network health score
+    // Calculate network health score (0-100)
+    // Formula: activeRatio (0-1) contributes 60 points, averageUptime (0-100%) contributes 40 points
+    // Max: 1.0 * 60 + 100 * 0.4 = 100, Min: 0 * 60 + 0 * 0.4 = 0
     const activeRatio = totalNodes > 0 ? activeNodes / totalNodes : 0;
     const networkHealth = activeRatio * 60 + averageUptime * 0.4;
 

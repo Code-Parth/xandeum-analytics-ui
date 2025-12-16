@@ -39,6 +39,9 @@ export interface NodeMetricPoint {
   latencyMs: number;
   version?: string;
   uptime?: number;
+  storageCapacityBytes?: number;
+  storageUsedBytes?: number;
+  storageUsagePercent?: number;
 }
 
 export interface NodeDetail extends PNode {
