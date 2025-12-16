@@ -110,12 +110,10 @@ class XandeumAPIService {
           (pod.last_seen_timestamp - (pod.uptime || 0)) * 1000,
         ),
         uptime: this.calculateUptimePercentage(pod.uptime),
-        performance: pod.is_public
-          ? {
-              storageCapacity: pod.storage_committed || 0,
-              storageUsed: pod.storage_used || 0,
-            }
-          : undefined,
+        performance: {
+          storageCapacity: pod.storage_committed || 0,
+          storageUsed: pod.storage_used || 0,
+        },
       };
     });
   }
@@ -277,14 +275,12 @@ class XandeumAPIService {
         lastSeen: new Date(pod.lastSeenTimestamp * 1000),
         firstSeen: new Date((pod.lastSeenTimestamp - (pod.uptime || 0)) * 1000),
         uptime: this.calculateUptimePercentage(pod.uptime),
-        performance: pod.isPublic
-          ? {
-              storageCapacity: pod.storageCommitted || 0,
-              storageUsed: pod.storageUsed || 0,
-              storageUsagePercent: pod.storageUsagePercent ?? undefined,
-              rpcPort: pod.rpcPort ?? undefined,
-            }
-          : undefined,
+        performance: {
+          storageCapacity: pod.storageCommitted || 0,
+          storageUsed: pod.storageUsed || 0,
+          storageUsagePercent: pod.storageUsagePercent ?? undefined,
+          rpcPort: pod.rpcPort ?? undefined,
+        },
       };
     });
   }

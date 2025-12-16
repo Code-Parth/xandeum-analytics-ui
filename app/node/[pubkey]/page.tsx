@@ -190,7 +190,7 @@ export default function NodeDetailPage() {
           {[1, 2, 3].map((i) => (
             <Card key={i}>
               <CardHeader>
-                <Skeleton className="h-6 w-32 mb-2" />
+                <Skeleton className="mb-2 h-6 w-32" />
                 <Skeleton className="h-4 w-40" />
               </CardHeader>
               <CardContent className="space-y-2">
@@ -205,7 +205,7 @@ export default function NodeDetailPage() {
         {/* Storage Card Skeleton */}
         <Card>
           <CardHeader>
-            <Skeleton className="h-6 w-40 mb-2" />
+            <Skeleton className="mb-2 h-6 w-40" />
             <Skeleton className="h-4 w-56" />
           </CardHeader>
           <CardContent className="space-y-3">
@@ -219,7 +219,7 @@ export default function NodeDetailPage() {
         {[1, 2].map((i) => (
           <Card key={i}>
             <CardHeader>
-              <Skeleton className="h-6 w-32 mb-2" />
+              <Skeleton className="mb-2 h-6 w-32" />
               <Skeleton className="h-4 w-64" />
             </CardHeader>
             <CardContent>
@@ -475,7 +475,7 @@ export default function NodeDetailPage() {
           ) : metricsLoading ? (
             <Skeleton className="h-80 w-full" />
           ) : latencyData.length === 0 ? (
-            <div className="text-muted-foreground text-sm text-center py-8">
+            <div className="text-muted-foreground py-8 text-center text-sm">
               No metrics available for this range.
             </div>
           ) : (
@@ -527,7 +527,7 @@ export default function NodeDetailPage() {
           ) : metricsLoading ? (
             <Skeleton className="h-80 w-full" />
           ) : storageData.length === 0 ? (
-            <div className="text-muted-foreground text-sm text-center py-8">
+            <div className="text-muted-foreground py-8 text-center text-sm">
               No storage metrics available for this range.
             </div>
           ) : (

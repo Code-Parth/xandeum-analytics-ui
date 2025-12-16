@@ -1,7 +1,6 @@
 "use client";
-import Link from "next/link";
-import { useState } from "react";
-import { formatBytes } from "@/lib/utils";
+
+import { useState, useMemo } from "react";
 import { useNodes, useNetworkStats, useNetworkHistory } from "@/hooks";
 import {
   Card,
@@ -12,15 +11,6 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -28,7 +18,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import type { NodeStatus } from "@/types";
 import {
   ChartConfig,
   ChartContainer,
@@ -39,8 +28,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   Legend,
@@ -49,14 +36,8 @@ import {
 } from "recharts";
 import { ThemeToggleButton } from "@/components/ui/theme-toggle-button";
 import { Skeleton } from "@/components/ui/skeleton";
-
-function formatLastSeen(date: Date): string {
-  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-  if (seconds < 60) return `${seconds}s ago`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  return `${Math.floor(seconds / 86400)}d ago`;
-}
+import { DataTable } from "./data-table";
+import { columns, type NodeGroup } from "./columns";
 
 export default function DashboardPage() {
   const {
@@ -70,12 +51,83 @@ export default function DashboardPage() {
     error: statsError,
   } = useNetworkStats();
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [timeRange, setTimeRange] = useState<number>(24); // hours
 
   // Fetch historical network data
   const { data: networkHistory } = useNetworkHistory({ hours: timeRange });
+
+  // Group nodes by public key and transform for DataTable
+  // Must be before early returns to satisfy React hooks rules
+  const nodeGroups: NodeGroup[] = useMemo(() => {
+    if (!nodes) return [];
+
+    const map = new Map<
+      string,
+      {
+        key: string;
+        pubkey: string | null;
+        nodes: typeof nodes;
+      }
+    >();
+
+    for (const node of nodes) {
+      const groupKey = node.publicKey || node.id;
+      const existing = map.get(groupKey);
+      if (existing) {
+        existing.nodes.push(node);
+      } else {
+        map.set(groupKey, {
+          key: groupKey,
+          pubkey: node.publicKey,
+          nodes: [node],
+        });
+      }
+    }
+
+    return Array.from(map.values()).map(
+      ({ key, pubkey, nodes: groupNodes }) => {
+        const sortedByLastSeen = [...groupNodes].sort(
+          (a, b) => b.lastSeen.getTime() - a.lastSeen.getTime(),
+        );
+        const primary = sortedByLastSeen[0];
+
+        const committedStorage = groupNodes.reduce(
+          (sum, n) => sum + (n.performance?.storageCapacity || 0),
+          0,
+        );
+        const usedStorage = groupNodes.reduce(
+          (sum, n) => sum + (n.performance?.storageUsed || 0),
+          0,
+        );
+        const usagePercent =
+          committedStorage > 0 ? (usedStorage / committedStorage) * 100 : null;
+
+        const addresses = groupNodes.map((n) => ({
+          id: n.id,
+          ipAddress: n.ipAddress,
+          port: n.port,
+        }));
+
+        return {
+          key,
+          pubkey,
+          addresses,
+          committedStorage,
+          usedStorage,
+          usagePercent,
+          version: primary.version,
+        };
+      },
+    );
+  }, [nodes]);
+
+  // Calculate total unique public keys
+  const totalPublicKeys = useMemo(() => {
+    if (!nodes) return 0;
+    return new Set(
+      nodes.map((n) => n.publicKey).filter((pk): pk is string => !!pk),
+    ).size;
+  }, [nodes]);
 
   // Loading state
   if (nodesLoading || statsLoading) {
@@ -84,8 +136,8 @@ export default function DashboardPage() {
         {/* Header Skeleton */}
         <div className="flex w-full flex-row items-center justify-between">
           <div className="flex-1">
-            <Skeleton className="h-9 w-80 mb-2" />
-            <Skeleton className="h-5 w-64 mb-3" />
+            <Skeleton className="mb-2 h-9 w-80" />
+            <Skeleton className="mb-3 h-5 w-64" />
             <div className="mt-3 flex gap-6">
               <Skeleton className="h-5 w-32" />
               <Skeleton className="h-5 w-40" />
@@ -102,7 +154,7 @@ export default function DashboardPage() {
                 <Skeleton className="h-4 w-24" />
               </CardHeader>
               <CardContent>
-                <Skeleton className="h-8 w-16 mb-2" />
+                <Skeleton className="mb-2 h-8 w-16" />
                 <Skeleton className="h-3 w-32" />
               </CardContent>
             </Card>
@@ -116,7 +168,7 @@ export default function DashboardPage() {
           {[1, 2].map((i) => (
             <Card key={i}>
               <CardHeader>
-                <Skeleton className="h-6 w-48 mb-2" />
+                <Skeleton className="mb-2 h-6 w-48" />
                 <Skeleton className="h-4 w-64" />
               </CardHeader>
               <CardContent>
@@ -132,7 +184,7 @@ export default function DashboardPage() {
         <div>
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <Skeleton className="h-7 w-48 mb-2" />
+              <Skeleton className="mb-2 h-7 w-48" />
               <Skeleton className="h-4 w-40" />
             </div>
             <Skeleton className="h-10 w-32" />
@@ -141,7 +193,7 @@ export default function DashboardPage() {
             {[1, 2].map((i) => (
               <Card key={i}>
                 <CardHeader>
-                  <Skeleton className="h-6 w-40 mb-2" />
+                  <Skeleton className="mb-2 h-6 w-40" />
                   <Skeleton className="h-4 w-56" />
                 </CardHeader>
                 <CardContent>
@@ -157,8 +209,8 @@ export default function DashboardPage() {
         {/* Table Skeleton */}
         <Card>
           <CardHeader>
-            <Skeleton className="h-6 w-32 mb-2" />
-            <Skeleton className="h-4 w-48 mb-4" />
+            <Skeleton className="mb-2 h-6 w-32" />
+            <Skeleton className="mb-4 h-4 w-48" />
             <div className="flex gap-4">
               <Skeleton className="h-10 w-64" />
               <Skeleton className="h-10 w-36" />
@@ -218,132 +270,6 @@ export default function DashboardPage() {
     );
   }
 
-  // Helper functions
-  const getStatusBadge = (status: NodeStatus) => {
-    const variants = {
-      active: "default",
-      inactive: "destructive",
-      syncing: "secondary",
-    } as const;
-    return (
-      <Badge variant={variants[status]} className="capitalize">
-        {status}
-      </Badge>
-    );
-  };
-
-  const truncateKey = (key: string) => {
-    if (key.length <= 16) return key;
-    return `${key.slice(0, 8)}...${key.slice(-8)}`;
-  };
-
-  const formatUptime = (uptime: number) => `${uptime.toFixed(1)}%`;
-
-  // Group nodes by public key (one row per pubkey).
-  // Nodes without a pubkey are grouped by their unique id (one row per address).
-  const nodeGroups = (() => {
-    const map = new Map<
-      string,
-      {
-        key: string;
-        pubkey: string | null;
-        nodes: typeof nodes;
-      }
-    >();
-
-    for (const node of nodes) {
-      const groupKey = node.publicKey || node.id;
-      const existing = map.get(groupKey);
-      if (existing) {
-        existing.nodes.push(node);
-      } else {
-        map.set(groupKey, {
-          key: groupKey,
-          pubkey: node.publicKey,
-          nodes: [node],
-        });
-      }
-    }
-
-    return Array.from(map.values()).map(
-      ({ key, pubkey, nodes: groupNodes }) => {
-        const sortedByLastSeen = [...groupNodes].sort(
-          (a, b) => b.lastSeen.getTime() - a.lastSeen.getTime(),
-        );
-        const primary = sortedByLastSeen[0];
-
-        const versionsSet = new Set(
-          groupNodes.map((n) => n.version).filter(Boolean),
-        );
-        const versions = Array.from(versionsSet);
-
-        const status: NodeStatus = groupNodes.some((n) => n.status === "active")
-          ? "active"
-          : groupNodes.some((n) => n.status === "syncing")
-            ? "syncing"
-            : "inactive";
-
-        const uptime =
-          groupNodes.length > 0
-            ? groupNodes.reduce((sum, n) => sum + n.uptime, 0) /
-              groupNodes.length
-            : 0;
-
-        const lastSeen = sortedByLastSeen[0]?.lastSeen ?? new Date(0);
-
-        const totalStorageCapacity = groupNodes.reduce(
-          (sum, n) => sum + (n.performance?.storageCapacity || 0),
-          0,
-        );
-        const totalStorageUsed = groupNodes.reduce(
-          (sum, n) => sum + (n.performance?.storageUsed || 0),
-          0,
-        );
-
-        const addresses = groupNodes.map((n) => ({
-          id: n.id,
-          ipAddress: n.ipAddress,
-          port: n.port,
-        }));
-
-        return {
-          key,
-          pubkey,
-          primary,
-          status,
-          versions,
-          uptime,
-          lastSeen,
-          totalStorageCapacity,
-          totalStorageUsed,
-          addresses,
-        };
-      },
-    );
-  })();
-
-  // Calculate total unique public keys
-  const totalPublicKeys = new Set(
-    nodes.map((n) => n.publicKey).filter((pk): pk is string => !!pk),
-  ).size;
-
-  // Filter groups based on search and status
-  const filteredGroups = nodeGroups.filter((group) => {
-    const search = searchQuery.toLowerCase();
-
-    const matchesSearch =
-      search === "" ||
-      (group.pubkey ?? "").toLowerCase().includes(search) ||
-      group.addresses.some(({ ipAddress }) =>
-        ipAddress.toLowerCase().includes(search),
-      );
-
-    const matchesStatus =
-      statusFilter === "all" || group.status === statusFilter;
-
-    return matchesSearch && matchesStatus;
-  });
-
   // Chart data
   const statusData = [
     {
@@ -365,20 +291,51 @@ export default function DashboardPage() {
 
   const storageData = [
     {
-      name: "Storage",
-      total: stats.totalStorage / 1024 ** 3,
-      used: stats.usedStorage / 1024 ** 3,
+      name: "Used",
+      value: stats.usedStorage / 1024 ** 3,
+      fill: "var(--chart-2)",
+    },
+    {
+      name: "Available",
+      value: Math.max(0, (stats.totalStorage - stats.usedStorage) / 1024 ** 3),
+      fill: "var(--chart-1)",
     },
   ];
 
-  const chartConfig = {
-    total: {
-      label: "Total Capacity",
-      color: "var(--chart-1)",
+  const storageChartConfig = {
+    value: {
+      label: "Storage (GB)",
     },
-    used: {
+    Used: {
       label: "Used",
       color: "var(--chart-2)",
+    },
+    Available: {
+      label: "Available",
+      color: "var(--chart-1)",
+    },
+  } satisfies ChartConfig;
+
+  // Generic chart config for line charts and status pie chart
+  const chartConfig = {
+    totalNodes: {
+      label: "Total Nodes",
+      color: "var(--chart-1)",
+    },
+    activeNodes: {
+      label: "Active Nodes",
+      color: "var(--chart-2)",
+    },
+    totalStorage: {
+      label: "Total Storage (GB)",
+      color: "var(--chart-1)",
+    },
+    usedStorage: {
+      label: "Used Storage (GB)",
+      color: "var(--chart-2)",
+    },
+    value: {
+      label: "Count",
     },
   } satisfies ChartConfig;
 
@@ -492,7 +449,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatUptime(stats.averageUptime)}
+              {stats.averageUptime.toFixed(1)}%
             </div>
             <p className="text-muted-foreground mt-1 text-xs">
               Network average
@@ -535,32 +492,39 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Storage Usage Bar Chart */}
+        {/* Storage Usage Pie Chart */}
         <Card>
           <CardHeader>
             <CardTitle>Storage Usage</CardTitle>
-            <CardDescription>Total capacity vs used storage</CardDescription>
+            <CardDescription>
+              Used vs available storage (Total:{" "}
+              {(stats.totalStorage / 1024 ** 3).toFixed(2)} GB)
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={chartConfig} className="h-75">
-              <BarChart data={storageData}>
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <XAxis dataKey="name" />
-                <YAxis />
+            <ChartContainer config={storageChartConfig} className="h-75">
+              <PieChart>
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      formatter={(value) => `${Number(value).toFixed(2)} GB`}
+                    />
+                  }
+                />
+                <Pie
+                  data={storageData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={100}
+                  label={({ name, value }) =>
+                    `${name}: ${Number(value).toFixed(2)} GB`
+                  }
+                />
                 <Legend />
-                <Bar
-                  dataKey="total"
-                  fill="var(--color-total)"
-                  name="Total Capacity (GB)"
-                  radius={[4, 4, 0, 0]}
-                />
-                <Bar
-                  dataKey="used"
-                  fill="var(--color-used)"
-                  name="Used (GB)"
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
+              </PieChart>
             </ChartContainer>
           </CardContent>
         </Card>
@@ -604,7 +568,7 @@ export default function DashboardPage() {
               {!networkHistory ? (
                 <Skeleton className="h-75 w-full" />
               ) : networkHistory.length === 0 ? (
-                <div className="text-muted-foreground text-sm text-center py-8">
+                <div className="text-muted-foreground py-8 text-center text-sm">
                   No historical data available for this range.
                 </div>
               ) : (
@@ -664,7 +628,7 @@ export default function DashboardPage() {
               {!networkHistory ? (
                 <Skeleton className="h-75 w-full" />
               ) : networkHistory.length === 0 ? (
-                <div className="text-muted-foreground text-sm text-center py-8">
+                <div className="text-muted-foreground py-8 text-center text-sm">
                   No historical data available for this range.
                 </div>
               ) : (
@@ -726,119 +690,15 @@ export default function DashboardPage() {
         <CardHeader>
           <CardTitle>Network Nodes</CardTitle>
           <CardDescription>
-            Showing {filteredGroups.length} of {nodeGroups.length} pubkeys
+            All pNodes on the network with sortable columns
           </CardDescription>
-          <div className="mt-4 flex gap-4">
-            <Input
-              placeholder="Search by public key or IP..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="max-w-sm"
-            />
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-45">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-                <SelectItem value="syncing">Syncing</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Public Key</TableHead>
-                  <TableHead>Addresses</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Versions</TableHead>
-                  <TableHead>Uptime</TableHead>
-                  <TableHead>Last Seen</TableHead>
-                  <TableHead>Storage</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredGroups.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={8}
-                      className="text-muted-foreground text-center">
-                      No nodes found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredGroups.map((group) => (
-                    <TableRow key={group.key}>
-                      <TableCell className="font-mono text-sm">
-                        {group.pubkey ? (
-                          <Link
-                            href={`/node/${group.pubkey}`}
-                            className="text-primary hover:underline">
-                            {truncateKey(group.pubkey)}
-                          </Link>
-                        ) : (
-                          <span className="text-muted-foreground">Unknown</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="space-y-1 text-xs">
-                        {group.addresses.map((addr) => (
-                          <div key={addr.id} className="text-muted-foreground">
-                            {addr.ipAddress}:{addr.port}
-                          </div>
-                        ))}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(group.status)}</TableCell>
-                      <TableCell className="font-mono text-sm">
-                        <div className="flex flex-wrap gap-1">
-                          <Badge variant="outline">
-                            {group.primary.version}
-                          </Badge>
-                          {group.versions
-                            .filter((v) => v !== group.primary.version)
-                            .map((version) => (
-                              <Badge
-                                key={version}
-                                variant="secondary"
-                                className="text-[10px]">
-                                {version}
-                              </Badge>
-                            ))}
-                        </div>
-                      </TableCell>
-                      <TableCell>{formatUptime(group.uptime)}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {formatLastSeen(group.lastSeen)}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-xs">
-                        {group.totalStorageCapacity || group.totalStorageUsed
-                          ? (() => {
-                              const used = group.totalStorageUsed;
-                              const total = group.totalStorageCapacity;
-                              const percent =
-                                total > 0 ? (used / total) * 100 : undefined;
-                              return (
-                                <span>
-                                  {formatBytes(used)} / {formatBytes(total)}
-                                  {percent !== undefined &&
-                                    !Number.isNaN(percent) && (
-                                      <span> ({percent.toFixed(1)}%)</span>
-                                    )}
-                                </span>
-                              );
-                            })()
-                          : "N/A"}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          <DataTable
+            columns={columns}
+            data={nodeGroups}
+            filterPlaceholder="Search by public key or IP..."
+          />
         </CardContent>
       </Card>
     </div>
