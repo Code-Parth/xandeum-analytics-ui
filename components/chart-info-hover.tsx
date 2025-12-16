@@ -1,6 +1,10 @@
 "use client";
 
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import { Info } from "lucide-react";
 
 type ChartInfoItem = {
@@ -29,7 +33,9 @@ export function ChartInfoHover({
         <div className="space-y-1">
           {items.map((item) => (
             <div key={item.label} className="flex gap-2 text-xs">
-              <span className="text-muted-foreground shrink-0">{item.label}:</span>
+              <span className="text-muted-foreground shrink-0">
+                {item.label}:
+              </span>
               <span className="font-medium">{item.value}</span>
             </div>
           ))}

@@ -751,7 +751,10 @@ export default function DashboardPage() {
             ariaLabel="Network nodes table info"
             items={[
               { label: "Data source", value: "Latest nodes snapshot" },
-              { label: "Metrics", value: "Grouped by pubkey, addresses, storage" },
+              {
+                label: "Metrics",
+                value: "Grouped by pubkey, addresses, storage",
+              },
               { label: "Time", value: "Current snapshot (sortable)" },
             ]}
           />

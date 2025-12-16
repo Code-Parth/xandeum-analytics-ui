@@ -401,9 +401,15 @@ export default function NodeDetailPage() {
             <ChartInfoHover
               ariaLabel="Node versions info"
               items={[
-                { label: "Data source", value: "Node snapshot + metrics history" },
+                {
+                  label: "Data source",
+                  value: "Node snapshot + metrics history",
+                },
                 { label: "Metrics", value: "Current version + known versions" },
-                { label: "Time", value: "Current snapshot (history if present)" },
+                {
+                  label: "Time",
+                  value: "Current snapshot (history if present)",
+                },
               ]}
             />
           </CardHeader>
@@ -635,9 +641,13 @@ export default function NodeDetailPage() {
                 items={[
                   {
                     label: "Data source",
-                    value: "Node metrics + snapshot (includes historical addresses)",
+                    value:
+                      "Node metrics + snapshot (includes historical addresses)",
                   },
-                  { label: "Metrics", value: "Version, uptime, status by address" },
+                  {
+                    label: "Metrics",
+                    value: "Version, uptime, status by address",
+                  },
                   {
                     label: "Time range",
                     value: `${hours}-hour window; some addresses may be historical only`,
@@ -684,7 +694,8 @@ export default function NodeDetailPage() {
                         </div>
                       ) : (
                         <span className="text-muted-foreground text-sm">
-                          Historical only — present in this time window, not in the latest snapshot
+                          Historical only — present in this time window, not in
+                          the latest snapshot
                         </span>
                       )}
                     </div>
@@ -768,8 +779,14 @@ export default function NodeDetailPage() {
                           ariaLabel="Latency chart info"
                           items={[
                             { label: "Data source", value: "Node metrics API" },
-                            { label: "Metrics", value: "Latency by address (seconds)" },
-                            { label: "Time range", value: `${hours}-hour window` },
+                            {
+                              label: "Metrics",
+                              value: "Latency by address (seconds)",
+                            },
+                            {
+                              label: "Time range",
+                              value: `${hours}-hour window`,
+                            },
                           ]}
                         />
                       </CardHeader>
@@ -852,9 +869,13 @@ export default function NodeDetailPage() {
                             { label: "Data source", value: "Node metrics API" },
                             {
                               label: "Metrics",
-                              value: "Committed vs used storage per address (GB)",
+                              value:
+                                "Committed vs used storage per address (GB)",
                             },
-                            { label: "Time range", value: `${hours}-hour window` },
+                            {
+                              label: "Time range",
+                              value: `${hours}-hour window`,
+                            },
                           ]}
                         />
                       </CardHeader>
