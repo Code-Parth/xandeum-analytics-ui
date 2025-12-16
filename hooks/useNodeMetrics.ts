@@ -37,6 +37,7 @@ function toMetricPoint(snapshot: PodSnapshot): NodeMetricPoint {
 
   return {
     timestamp: snapshotTime,
+    address: snapshot.address,
     latencyMs,
     version: snapshot.version,
     uptime: snapshot.uptime ?? undefined,

@@ -67,13 +67,6 @@ function formatTimestampLabel(value: unknown) {
   });
 }
 
-const latencyChartConfig = {
-  latency: {
-    label: "Latency (s since last seen)",
-    color: "var(--chart-1)",
-  },
-} satisfies ChartConfig;
-
 const storageChartConfig = {
   committed: {
     label: "Committed",
@@ -108,30 +101,87 @@ export default function NodeDetailPage() {
     error: metricsError,
   } = useNodeMetrics({ pubkey, hours, enabled: !!pubkey });
 
-  const latencyData =
-    metrics?.map((point) => ({
-      timestamp: point.timestamp,
-      latencySeconds: Number((point.latencyMs / 1000).toFixed(2)),
-    })) || [];
+  // Latency chart config
+  const latencyChartConfig = {
+    latency: {
+      label: "Latency (s)",
+      color: "var(--chart-1)",
+    },
+  } satisfies ChartConfig;
 
-  const storageData =
-    metrics
-      ?.map((point) => {
-        const committed = point.storageCapacityBytes ?? 0;
-        const used = point.storageUsedBytes ?? 0;
-        if (!committed && !used) {
-          return null;
-        }
-        return {
-          timestamp: point.timestamp,
-          committed: committed / 1024 ** 3,
-          used: used / 1024 ** 3,
-        };
-      })
-      .filter(
-        (v): v is { timestamp: Date; committed: number; used: number } =>
-          v !== null,
-      ) || [];
+  // Group latency data by address
+  const latencyDataByAddress = useMemo(() => {
+    if (!metrics)
+      return new Map<string, { timestamp: Date; latency: number }[]>();
+
+    const byAddress = new Map<string, { timestamp: Date; latency: number }[]>();
+
+    for (const point of metrics) {
+      if (!byAddress.has(point.address)) {
+        byAddress.set(point.address, []);
+      }
+
+      byAddress.get(point.address)!.push({
+        timestamp: point.timestamp,
+        latency: Number((point.latencyMs / 1000).toFixed(2)),
+      });
+    }
+
+    // Sort each address's data by timestamp
+    for (const [addr, data] of byAddress) {
+      byAddress.set(
+        addr,
+        data.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()),
+      );
+    }
+
+    return byAddress;
+  }, [metrics]);
+
+  const latencyAddresses = Array.from(latencyDataByAddress.keys());
+
+  // Group storage data by address
+  const storageDataByAddress = useMemo(() => {
+    if (!metrics)
+      return new Map<
+        string,
+        { timestamp: Date; committed: number; used: number }[]
+      >();
+
+    const byAddress = new Map<
+      string,
+      { timestamp: Date; committed: number; used: number }[]
+    >();
+
+    for (const point of metrics) {
+      const committed = point.storageCapacityBytes ?? 0;
+      const used = point.storageUsedBytes ?? 0;
+
+      if (!committed && !used) continue;
+
+      if (!byAddress.has(point.address)) {
+        byAddress.set(point.address, []);
+      }
+
+      byAddress.get(point.address)!.push({
+        timestamp: point.timestamp,
+        committed: committed / 1024 ** 3,
+        used: used / 1024 ** 3,
+      });
+    }
+
+    // Sort each address's data by timestamp
+    for (const [addr, data] of byAddress) {
+      byAddress.set(
+        addr,
+        data.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()),
+      );
+    }
+
+    return byAddress;
+  }, [metrics]);
+
+  const storageAddresses = Array.from(storageDataByAddress.keys());
 
   const availableVersions =
     versions.length > 0 ? versions : node?.version ? [node.version] : [];
@@ -462,121 +512,307 @@ export default function NodeDetailPage() {
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Latency</CardTitle>
-          <CardDescription>Time since last seen over time</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {metricsError ? (
+      {/* Metrics Charts - Latency and Storage per address */}
+      {metricsError ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Metrics</CardTitle>
+          </CardHeader>
+          <CardContent>
             <div className="text-destructive text-sm">
               Failed to load metrics: {metricsError.message}
             </div>
-          ) : metricsLoading ? (
-            <Skeleton className="h-80 w-full" />
-          ) : latencyData.length === 0 ? (
+          </CardContent>
+        </Card>
+      ) : metricsLoading ? (
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Latency</CardTitle>
+              <CardDescription>Time since last seen over time</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-64 w-full" />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Storage Usage</CardTitle>
+              <CardDescription>
+                Committed vs used storage over time
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-64 w-full" />
+            </CardContent>
+          </Card>
+        </div>
+      ) : latencyAddresses.length === 0 && storageAddresses.length === 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Metrics</CardTitle>
+            <CardDescription>Latency and storage over time</CardDescription>
+          </CardHeader>
+          <CardContent>
             <div className="text-muted-foreground py-8 text-center text-sm">
               No metrics available for this range.
             </div>
-          ) : (
-            <ChartContainer config={latencyChartConfig} className="h-80">
-              <LineChart data={latencyData}>
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      labelFormatter={formatTimestampLabel}
-                    />
-                  }
-                />
-                <XAxis
-                  dataKey="timestamp"
-                  tickFormatter={(ts) =>
-                    new Date(ts).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                  }
-                />
-                <YAxis />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="latencySeconds"
-                  name="Latency (s)"
-                  stroke="var(--chart-1)"
-                  strokeWidth={2}
-                  dot={false}
-                  activeDot={false}
-                />
-              </LineChart>
-            </ChartContainer>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* Summary Card - All addresses overview */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Addresses Overview</CardTitle>
+              <CardDescription>
+                Status summary for all{" "}
+                {
+                  Array.from(
+                    new Set([...latencyAddresses, ...storageAddresses]),
+                  ).length
+                }{" "}
+                address(es)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {Array.from(
+                  new Set([...latencyAddresses, ...storageAddresses]),
+                ).map((address) => {
+                  const nodeForAddress = nodesForPubkey.find(
+                    (n) => `${n.ipAddress}:${n.port}` === address,
+                  );
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Storage Usage</CardTitle>
-          <CardDescription>Committed vs used storage over time</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {metricsError ? (
-            <div className="text-destructive text-sm">
-              Failed to load metrics: {metricsError.message}
-            </div>
-          ) : metricsLoading ? (
-            <Skeleton className="h-80 w-full" />
-          ) : storageData.length === 0 ? (
-            <div className="text-muted-foreground py-8 text-center text-sm">
-              No storage metrics available for this range.
-            </div>
-          ) : (
-            <ChartContainer config={storageChartConfig} className="h-80">
-              <LineChart data={storageData}>
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      labelFormatter={formatTimestampLabel}
-                    />
-                  }
-                />
-                <XAxis
-                  dataKey="timestamp"
-                  tickFormatter={(ts) =>
-                    new Date(ts).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                  }
-                />
-                <YAxis
-                  tickFormatter={(v) => `${(v as number).toFixed(1)} GB`}
-                  allowDecimals
-                />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="committed"
-                  name="Committed (GB)"
-                  stroke="var(--chart-1)"
-                  strokeWidth={2}
-                  dot={false}
-                  activeDot={false}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="used"
-                  name="Used (GB)"
-                  stroke="var(--chart-2)"
-                  strokeWidth={2}
-                  dot={false}
-                  activeDot={false}
-                />
-              </LineChart>
-            </ChartContainer>
+                  return (
+                    <div
+                      key={`summary-${address}`}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded border px-3 py-2">
+                      <span className="font-mono text-sm">{address}</span>
+                      {nodeForAddress ? (
+                        <div className="flex flex-wrap items-center gap-3 text-sm">
+                          <Badge variant="outline">
+                            {nodeForAddress.version}
+                          </Badge>
+                          <span className="text-muted-foreground">
+                            Uptime:{" "}
+                            <span className="text-foreground font-medium">
+                              {nodeForAddress.uptime.toFixed(1)}%
+                            </span>
+                          </span>
+                          <Badge
+                            variant={
+                              nodeForAddress.status === "active"
+                                ? "default"
+                                : nodeForAddress.status === "syncing"
+                                  ? "secondary"
+                                  : "destructive"
+                            }
+                            className="capitalize">
+                            {nodeForAddress.status}
+                          </Badge>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">
+                          Historical data only (not in current snapshot)
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Separator />
+
+          {/* Individual address charts */}
+          {Array.from(new Set([...latencyAddresses, ...storageAddresses])).map(
+            (address) => {
+              const latencyData = latencyDataByAddress.get(address) || [];
+              const storageData = storageDataByAddress.get(address) || [];
+              // Find the node data for this address to get version and uptime
+              const nodeForAddress = nodesForPubkey.find(
+                (n) => `${n.ipAddress}:${n.port}` === address,
+              );
+
+              return (
+                <div key={address} className="space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-lg font-semibold">{address}</h3>
+                    <div className="flex flex-wrap items-center gap-3 text-sm">
+                      {nodeForAddress ? (
+                        <>
+                          <div className="flex items-center gap-1">
+                            <span className="text-muted-foreground">
+                              Version:
+                            </span>
+                            <Badge variant="outline">
+                              {nodeForAddress.version}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-muted-foreground">
+                              Uptime:
+                            </span>
+                            <span className="font-medium">
+                              {nodeForAddress.uptime.toFixed(1)}%
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-muted-foreground">
+                              Status:
+                            </span>
+                            <Badge
+                              variant={
+                                nodeForAddress.status === "active"
+                                  ? "default"
+                                  : nodeForAddress.status === "syncing"
+                                    ? "secondary"
+                                    : "destructive"
+                              }
+                              className="capitalize">
+                              {nodeForAddress.status}
+                            </Badge>
+                          </div>
+                        </>
+                      ) : (
+                        <Badge variant="secondary">Historical</Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    {/* Latency Chart */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">Latency</CardTitle>
+                        <CardDescription>
+                          Time since last seen over time
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {latencyData.length === 0 ? (
+                          <div className="text-muted-foreground py-8 text-center text-sm">
+                            No latency data available.
+                          </div>
+                        ) : (
+                          <ChartContainer
+                            config={latencyChartConfig}
+                            className="h-64">
+                            <LineChart data={latencyData}>
+                              <ChartTooltip
+                                content={
+                                  <ChartTooltipContent
+                                    labelFormatter={formatTimestampLabel}
+                                    formatter={(value) => `${value}s`}
+                                  />
+                                }
+                              />
+                              <XAxis
+                                dataKey="timestamp"
+                                tickFormatter={(ts) =>
+                                  new Date(ts).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })
+                                }
+                              />
+                              <YAxis tickFormatter={(v) => `${v}s`} />
+                              <Legend />
+                              <Line
+                                type="monotone"
+                                dataKey="latency"
+                                name="Latency (s)"
+                                stroke="var(--chart-1)"
+                                strokeWidth={2}
+                                dot={false}
+                                activeDot={false}
+                              />
+                            </LineChart>
+                          </ChartContainer>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Storage Chart */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">
+                          Storage Usage
+                        </CardTitle>
+                        <CardDescription>
+                          Committed vs used storage over time
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {storageData.length === 0 ? (
+                          <div className="text-muted-foreground py-8 text-center text-sm">
+                            No storage data available.
+                          </div>
+                        ) : (
+                          <ChartContainer
+                            config={storageChartConfig}
+                            className="h-64">
+                            <LineChart data={storageData}>
+                              <ChartTooltip
+                                content={
+                                  <ChartTooltipContent
+                                    labelFormatter={formatTimestampLabel}
+                                    formatter={(value) =>
+                                      `${Number(value).toFixed(2)} GB`
+                                    }
+                                  />
+                                }
+                              />
+                              <XAxis
+                                dataKey="timestamp"
+                                tickFormatter={(ts) =>
+                                  new Date(ts).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })
+                                }
+                              />
+                              <YAxis
+                                tickFormatter={(v) =>
+                                  `${(v as number).toFixed(1)} GB`
+                                }
+                                allowDecimals
+                              />
+                              <Legend />
+                              <Line
+                                type="monotone"
+                                dataKey="committed"
+                                name="Committed (GB)"
+                                stroke="var(--chart-1)"
+                                strokeWidth={2}
+                                dot={false}
+                                activeDot={false}
+                              />
+                              <Line
+                                type="monotone"
+                                dataKey="used"
+                                name="Used (GB)"
+                                stroke="var(--chart-2)"
+                                strokeWidth={2}
+                                dot={false}
+                                activeDot={false}
+                              />
+                            </LineChart>
+                          </ChartContainer>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <Separator />
+                </div>
+              );
+            },
           )}
-        </CardContent>
-      </Card>
+        </>
+      )}
     </div>
   );
 }

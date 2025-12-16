@@ -36,6 +36,7 @@ export interface NetworkStats {
 
 export interface NodeMetricPoint {
   timestamp: Date;
+  address: string;
   latencyMs: number;
   version?: string;
   uptime?: number;
