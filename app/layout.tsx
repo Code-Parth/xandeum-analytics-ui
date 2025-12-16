@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { Provider } from "@/provider";
+import { Analytics } from "@vercel/analytics/next";
 import { Geist, Geist_Mono, Outfit } from "next/font/google";
 
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-sans" });
@@ -31,6 +32,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Provider>{children}</Provider>
+        <Analytics />
       </body>
     </html>
   );
