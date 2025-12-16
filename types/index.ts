@@ -3,6 +3,7 @@ export type NodeStatus = "active" | "inactive" | "syncing";
 export interface Performance {
   storageCapacity: number;
   storageUsed: number;
+  storageUsagePercent?: number;
   rpcPort?: number;
   shredVersion?: number;
   featureSet?: number;

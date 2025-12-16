@@ -6,6 +6,23 @@ import type {
   NodeStatus,
 } from "@/types";
 
+// Database pod snapshot type (from API response)
+interface DbPodSnapshot {
+  id: number;
+  address: string;
+  pubkey: string | null;
+  isPublic: boolean | null;
+  version: string;
+  lastSeenTimestamp: number;
+  uptime: number | null;
+  rpcPort: number | null;
+  storageCommitted: number | null;
+  storageUsed: number | null;
+  storageUsagePercent: number | null;
+  snapshotTimestamp: Date;
+  createdAt: Date;
+}
+
 class XandeumAPIService {
   private rpcUrl: string;
 
@@ -204,6 +221,91 @@ class XandeumAPIService {
     } catch {
       return { status: "down" };
     }
+  }
+
+  /**
+   * Get all nodes from database instead of live pRPC
+   */
+  async getAllNodesFromDB(): Promise<PNode[]> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    try {
+      const response = await fetch("/api/pods/latest", {
+        method: "GET",
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data: { pods: DbPodSnapshot[]; count: number; timestamp: Date } =
+        await response.json();
+
+      if (!data.pods) {
+        throw new Error("Invalid response from API - no pods data");
+      }
+
+      // Transform database pods to PNode format
+      return this.transformDbPodsToNodes(data.pods);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      throw error;
+    }
+  }
+
+  /**
+   * Transform database pods to PNode format
+   */
+  private transformDbPodsToNodes(pods: DbPodSnapshot[]): PNode[] {
+    return pods.map((pod, index) => {
+      const [ipAddress, portStr] = pod.address.split(":");
+      const port = parseInt(portStr) || 9001;
+
+      return {
+        id: pod.address || `node-${index}`,
+        publicKey: pod.pubkey || `unknown-${index}`,
+        ipAddress,
+        port,
+        version: pod.version,
+        status: this.determineStatusFromDb(pod),
+        lastSeen: new Date(pod.lastSeenTimestamp * 1000),
+        firstSeen: new Date((pod.lastSeenTimestamp - (pod.uptime || 0)) * 1000),
+        uptime: this.calculateUptimePercentage(pod.uptime),
+        performance: pod.isPublic
+          ? {
+              storageCapacity: pod.storageCommitted || 0,
+              storageUsed: pod.storageUsed || 0,
+              storageUsagePercent: pod.storageUsagePercent ?? undefined,
+              rpcPort: pod.rpcPort ?? undefined,
+            }
+          : undefined,
+      };
+    });
+  }
+
+  /**
+   * Determine node status from database pod data
+   */
+  private determineStatusFromDb(pod: DbPodSnapshot): NodeStatus {
+    if (!pod.isPublic || !pod.pubkey) {
+      return "inactive";
+    }
+
+    const timeSinceLastSeen = Date.now() / 1000 - pod.lastSeenTimestamp;
+
+    if (timeSinceLastSeen > 300) {
+      return "inactive";
+    }
+
+    if (timeSinceLastSeen > 120) {
+      return "syncing";
+    }
+
+    return "active";
   }
 }
 

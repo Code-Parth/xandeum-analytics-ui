@@ -6,7 +6,7 @@ export function useNodes() {
   return useQuery<PNode[], Error>({
     queryKey: ["nodes"],
     queryFn: async () => {
-      return await apiService.getAllNodes();
+      return await apiService.getAllNodesFromDB(); // Changed to use DB
     },
     staleTime: 30000, // 30 seconds
     refetchInterval: 30000, // Auto-refresh every 30s

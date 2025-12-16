@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useNodes, useNetworkStats } from "@/hooks";
+import { useNodes, useNetworkStats, useNetworkHistory } from "@/hooks";
 import {
   Card,
   CardHeader,
@@ -43,6 +43,8 @@ import {
   XAxis,
   YAxis,
   Legend,
+  LineChart,
+  Line,
 } from "recharts";
 
 function formatLastSeen(date: Date): string {
@@ -67,6 +69,10 @@ export default function DashboardPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [timeRange, setTimeRange] = useState<number>(24); // hours
+
+  // Fetch historical network data
+  const { data: networkHistory } = useNetworkHistory({ hours: timeRange });
 
   // Loading state
   if (nodesLoading || statsLoading) {
@@ -341,6 +347,125 @@ export default function DashboardPage() {
             </ChartContainer>
           </CardContent>
         </Card>
+      </div>
+
+      <Separator />
+
+      {/* Historical Trends Section */}
+      <div>
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Historical Trends</h2>
+            <p className="text-muted-foreground">Network activity over time</p>
+          </div>
+          <Select
+            value={String(timeRange)}
+            onValueChange={(v) => setTimeRange(Number(v))}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">1 Hour</SelectItem>
+              <SelectItem value="6">6 Hours</SelectItem>
+              <SelectItem value="24">24 Hours</SelectItem>
+              <SelectItem value="168">7 Days</SelectItem>
+              <SelectItem value="720">30 Days</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {/* Active Nodes Over Time */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Active Nodes Trend</CardTitle>
+              <CardDescription>
+                Node activity over the last {timeRange} hours
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={chartConfig} className="h-75">
+                <LineChart data={networkHistory || []}>
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <XAxis
+                    dataKey="timestamp"
+                    tickFormatter={(ts) =>
+                      new Date(ts).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    }
+                  />
+                  <YAxis />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="totalNodes"
+                    stroke="var(--chart-1)"
+                    name="Total Nodes"
+                    strokeWidth={2}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="activeNodes"
+                    stroke="var(--chart-2)"
+                    name="Active Nodes"
+                    strokeWidth={2}
+                  />
+                </LineChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+
+          {/* Storage Trend */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Storage Trend</CardTitle>
+              <CardDescription>
+                Storage usage over the last {timeRange} hours
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={chartConfig} className="h-75">
+                <LineChart
+                  data={
+                    networkHistory?.map((point) => ({
+                      ...point,
+                      totalStorage: point.totalStorage / 1024 ** 3,
+                      usedStorage: point.usedStorage / 1024 ** 3,
+                    })) || []
+                  }>
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <XAxis
+                    dataKey="timestamp"
+                    tickFormatter={(ts) =>
+                      new Date(ts).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    }
+                  />
+                  <YAxis />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="totalStorage"
+                    stroke="var(--chart-1)"
+                    name="Total Storage (GB)"
+                    strokeWidth={2}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="usedStorage"
+                    stroke="var(--chart-2)"
+                    name="Used Storage (GB)"
+                    strokeWidth={2}
+                  />
+                </LineChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       <Separator />
