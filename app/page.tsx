@@ -48,6 +48,7 @@ import {
   Line,
 } from "recharts";
 import { ThemeToggleButton } from "@/components/ui/theme-toggle-button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 function formatLastSeen(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -79,25 +80,106 @@ export default function DashboardPage() {
   // Loading state
   if (nodesLoading || statsLoading) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold">Xandeum Network Analytics</h1>
-            <p className="text-muted-foreground">Loading network data...</p>
+      <div className="container mx-auto space-y-6 p-6">
+        {/* Header Skeleton */}
+        <div className="flex w-full flex-row items-center justify-between">
+          <div className="flex-1">
+            <Skeleton className="h-9 w-80 mb-2" />
+            <Skeleton className="h-5 w-64 mb-3" />
+            <div className="mt-3 flex gap-6">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-5 w-40" />
+            </div>
           </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {[1, 2, 3, 4].map((i) => (
+          <Skeleton className="h-9 w-9 rounded" />
+        </div>
+
+        {/* Stat Cards Skeleton */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-16 mb-2" />
+                <Skeleton className="h-3 w-32" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <Separator />
+
+        {/* Charts Skeleton */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {[1, 2].map((i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-6 w-48 mb-2" />
+                <Skeleton className="h-4 w-64" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-75 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <Separator />
+
+        {/* Historical Trends Skeleton */}
+        <div>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <Skeleton className="h-7 w-48 mb-2" />
+              <Skeleton className="h-4 w-40" />
+            </div>
+            <Skeleton className="h-10 w-32" />
+          </div>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {[1, 2].map((i) => (
               <Card key={i}>
                 <CardHeader>
-                  <div className="bg-muted h-4 w-24 animate-pulse rounded" />
+                  <Skeleton className="h-6 w-40 mb-2" />
+                  <Skeleton className="h-4 w-56" />
                 </CardHeader>
                 <CardContent>
-                  <div className="bg-muted h-8 w-16 animate-pulse rounded" />
+                  <Skeleton className="h-75 w-full" />
                 </CardContent>
               </Card>
             ))}
           </div>
         </div>
+
+        <Separator />
+
+        {/* Table Skeleton */}
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-32 mb-2" />
+            <Skeleton className="h-4 w-48 mb-4" />
+            <div className="flex gap-4">
+              <Skeleton className="h-10 w-64" />
+              <Skeleton className="h-10 w-36" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex gap-4">
+                  <Skeleton className="h-12 flex-1" />
+                  <Skeleton className="h-12 flex-1" />
+                  <Skeleton className="h-12 flex-1" />
+                  <Skeleton className="h-12 flex-1" />
+                  <Skeleton className="h-12 flex-1" />
+                  <Skeleton className="h-12 flex-1" />
+                  <Skeleton className="h-12 flex-1" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -519,46 +601,54 @@ export default function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={chartConfig} className="h-75">
-                <LineChart data={networkHistory || []}>
-                  <ChartTooltip
-                    content={
-                      <ChartTooltipContent
-                        labelFormatter={formatTooltipTimestamp}
-                      />
-                    }
-                  />
-                  <XAxis
-                    dataKey="timestamp"
-                    tickFormatter={(ts) =>
-                      new Date(ts).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    }
-                  />
-                  <YAxis />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="totalNodes"
-                    stroke="var(--chart-1)"
-                    name="Total Nodes"
-                    strokeWidth={2}
-                    dot={false}
-                    activeDot={false}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="activeNodes"
-                    stroke="var(--chart-2)"
-                    name="Active Nodes"
-                    strokeWidth={2}
-                    dot={false}
-                    activeDot={false}
-                  />
-                </LineChart>
-              </ChartContainer>
+              {!networkHistory ? (
+                <Skeleton className="h-75 w-full" />
+              ) : networkHistory.length === 0 ? (
+                <div className="text-muted-foreground text-sm text-center py-8">
+                  No historical data available for this range.
+                </div>
+              ) : (
+                <ChartContainer config={chartConfig} className="h-75">
+                  <LineChart data={networkHistory}>
+                    <ChartTooltip
+                      content={
+                        <ChartTooltipContent
+                          labelFormatter={formatTooltipTimestamp}
+                        />
+                      }
+                    />
+                    <XAxis
+                      dataKey="timestamp"
+                      tickFormatter={(ts) =>
+                        new Date(ts).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      }
+                    />
+                    <YAxis />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="totalNodes"
+                      stroke="var(--chart-1)"
+                      name="Total Nodes"
+                      strokeWidth={2}
+                      dot={false}
+                      activeDot={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="activeNodes"
+                      stroke="var(--chart-2)"
+                      name="Active Nodes"
+                      strokeWidth={2}
+                      dot={false}
+                      activeDot={false}
+                    />
+                  </LineChart>
+                </ChartContainer>
+              )}
             </CardContent>
           </Card>
 
@@ -571,53 +661,59 @@ export default function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={chartConfig} className="h-75">
-                <LineChart
-                  data={
-                    networkHistory?.map((point) => ({
+              {!networkHistory ? (
+                <Skeleton className="h-75 w-full" />
+              ) : networkHistory.length === 0 ? (
+                <div className="text-muted-foreground text-sm text-center py-8">
+                  No historical data available for this range.
+                </div>
+              ) : (
+                <ChartContainer config={chartConfig} className="h-75">
+                  <LineChart
+                    data={networkHistory.map((point) => ({
                       ...point,
                       totalStorage: point.totalStorage / 1024 ** 3,
                       usedStorage: point.usedStorage / 1024 ** 3,
-                    })) || []
-                  }>
-                  <ChartTooltip
-                    content={
-                      <ChartTooltipContent
-                        labelFormatter={formatTooltipTimestamp}
-                      />
-                    }
-                  />
-                  <XAxis
-                    dataKey="timestamp"
-                    tickFormatter={(ts) =>
-                      new Date(ts).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    }
-                  />
-                  <YAxis />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="totalStorage"
-                    stroke="var(--chart-1)"
-                    name="Total Storage (GB)"
-                    strokeWidth={2}
-                    dot={false}
-                    activeDot={false}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="usedStorage"
-                    stroke="var(--chart-2)"
-                    name="Used Storage (GB)"
-                    strokeWidth={2}
-                    dot={false}
-                    activeDot={false}
-                  />
-                </LineChart>
-              </ChartContainer>
+                    }))}>
+                    <ChartTooltip
+                      content={
+                        <ChartTooltipContent
+                          labelFormatter={formatTooltipTimestamp}
+                        />
+                      }
+                    />
+                    <XAxis
+                      dataKey="timestamp"
+                      tickFormatter={(ts) =>
+                        new Date(ts).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      }
+                    />
+                    <YAxis />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="totalStorage"
+                      stroke="var(--chart-1)"
+                      name="Total Storage (GB)"
+                      strokeWidth={2}
+                      dot={false}
+                      activeDot={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="usedStorage"
+                      stroke="var(--chart-2)"
+                      name="Used Storage (GB)"
+                      strokeWidth={2}
+                      dot={false}
+                      activeDot={false}
+                    />
+                  </LineChart>
+                </ChartContainer>
+              )}
             </CardContent>
           </Card>
         </div>

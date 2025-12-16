@@ -30,6 +30,7 @@ import {
 import { Line, LineChart, XAxis, YAxis, Legend } from "recharts";
 import { formatBytes } from "@/lib/utils";
 import type { NodeStatus } from "@/types";
+import { Skeleton } from "@/components/ui/skeleton";
 
 function formatLastSeen(date: Date | undefined) {
   if (!date) return "Unknown";
@@ -168,22 +169,64 @@ export default function NodeDetailPage() {
 
   if (nodesLoading) {
     return (
-      <div className="container mx-auto space-y-4 p-6">
-        <div className="flex items-center justify-between">
+      <div className="container mx-auto space-y-6 p-6">
+        {/* Header Skeleton */}
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <div className="bg-muted h-6 w-48 animate-pulse rounded" />
-            <div className="bg-muted mt-2 h-4 w-32 animate-pulse rounded" />
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-9 w-64" />
+              <Skeleton className="h-6 w-20 rounded-full" />
+            </div>
+            <Skeleton className="mt-2 h-5 w-80" />
           </div>
-          <div className="bg-muted h-10 w-28 animate-pulse rounded" />
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-10 w-32" />
+            <Skeleton className="h-10 w-20" />
+          </div>
         </div>
+
+        {/* Info Cards Skeleton */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-6 w-32 mb-2" />
+                <Skeleton className="h-4 w-40" />
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Storage Card Skeleton */}
         <Card>
           <CardHeader>
-            <div className="bg-muted h-5 w-40 animate-pulse rounded" />
+            <Skeleton className="h-6 w-40 mb-2" />
+            <Skeleton className="h-4 w-56" />
           </CardHeader>
-          <CardContent>
-            <div className="bg-muted h-24 w-full animate-pulse rounded" />
+          <CardContent className="space-y-3">
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
           </CardContent>
         </Card>
+
+        {/* Charts Skeleton */}
+        {[1, 2].map((i) => (
+          <Card key={i}>
+            <CardHeader>
+              <Skeleton className="h-6 w-32 mb-2" />
+              <Skeleton className="h-4 w-64" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-80 w-full" />
+            </CardContent>
+          </Card>
+        ))}
       </div>
     );
   }
@@ -430,9 +473,9 @@ export default function NodeDetailPage() {
               Failed to load metrics: {metricsError.message}
             </div>
           ) : metricsLoading ? (
-            <div className="bg-muted h-64 w-full animate-pulse rounded" />
+            <Skeleton className="h-80 w-full" />
           ) : latencyData.length === 0 ? (
-            <div className="text-muted-foreground text-sm">
+            <div className="text-muted-foreground text-sm text-center py-8">
               No metrics available for this range.
             </div>
           ) : (
@@ -482,9 +525,9 @@ export default function NodeDetailPage() {
               Failed to load metrics: {metricsError.message}
             </div>
           ) : metricsLoading ? (
-            <div className="bg-muted h-64 w-full animate-pulse rounded" />
+            <Skeleton className="h-80 w-full" />
           ) : storageData.length === 0 ? (
-            <div className="text-muted-foreground text-sm">
+            <div className="text-muted-foreground text-sm text-center py-8">
               No storage metrics available for this range.
             </div>
           ) : (
