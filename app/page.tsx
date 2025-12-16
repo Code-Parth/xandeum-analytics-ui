@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useNodes, useNetworkStats, useNetworkHistory } from "@/hooks";
 import {
@@ -155,15 +156,92 @@ export default function DashboardPage() {
 
   const formatUptime = (uptime: number) => `${uptime.toFixed(1)}%`;
 
-  // Filter nodes based on search and status
-  const filteredNodes = nodes.filter((node) => {
+  // Group nodes by public key (one row per pubkey)
+  const nodeGroups = (() => {
+    const map = new Map<
+      string,
+      {
+        pubkey: string;
+        nodes: typeof nodes;
+      }
+    >();
+
+    for (const node of nodes) {
+      const key = node.publicKey || "unknown";
+      const existing = map.get(key);
+      if (existing) {
+        existing.nodes.push(node);
+      } else {
+        map.set(key, { pubkey: key, nodes: [node] });
+      }
+    }
+
+    return Array.from(map.values()).map(({ pubkey, nodes: groupNodes }) => {
+      const sortedByLastSeen = [...groupNodes].sort(
+        (a, b) => b.lastSeen.getTime() - a.lastSeen.getTime(),
+      );
+      const primary = sortedByLastSeen[0];
+
+      const versionsSet = new Set(
+        groupNodes.map((n) => n.version).filter(Boolean),
+      );
+      const versions = Array.from(versionsSet);
+
+      const status: NodeStatus = groupNodes.some((n) => n.status === "active")
+        ? "active"
+        : groupNodes.some((n) => n.status === "syncing")
+          ? "syncing"
+          : "inactive";
+
+      const uptime =
+        groupNodes.length > 0
+          ? groupNodes.reduce((sum, n) => sum + n.uptime, 0) / groupNodes.length
+          : 0;
+
+      const lastSeen = sortedByLastSeen[0]?.lastSeen ?? new Date(0);
+
+      const totalStorageCapacity = groupNodes.reduce(
+        (sum, n) => sum + (n.performance?.storageCapacity || 0),
+        0,
+      );
+      const totalStorageUsed = groupNodes.reduce(
+        (sum, n) => sum + (n.performance?.storageUsed || 0),
+        0,
+      );
+
+      const addresses = groupNodes.map((n) => ({
+        id: n.id,
+        ipAddress: n.ipAddress,
+        port: n.port,
+      }));
+
+      return {
+        pubkey,
+        primary,
+        status,
+        versions,
+        uptime,
+        lastSeen,
+        totalStorageCapacity,
+        totalStorageUsed,
+        addresses,
+      };
+    });
+  })();
+
+  // Filter groups based on search and status
+  const filteredGroups = nodeGroups.filter((group) => {
+    const search = searchQuery.toLowerCase();
+
     const matchesSearch =
-      searchQuery === "" ||
-      node.publicKey.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      node.ipAddress.toLowerCase().includes(searchQuery.toLowerCase());
+      search === "" ||
+      group.pubkey.toLowerCase().includes(search) ||
+      group.addresses.some(({ ipAddress }) =>
+        ipAddress.toLowerCase().includes(search),
+      );
 
     const matchesStatus =
-      statusFilter === "all" || node.status === statusFilter;
+      statusFilter === "all" || group.status === statusFilter;
 
     return matchesSearch && matchesStatus;
   });
@@ -205,6 +283,27 @@ export default function DashboardPage() {
       color: "var(--chart-2)",
     },
   } satisfies ChartConfig;
+
+  const formatTooltipTimestamp = (
+    value: unknown,
+    payload?: { payload?: Record<string, unknown> }[],
+  ) => {
+    const rawTimestamp =
+      payload?.[0]?.payload?.timestamp ?? payload?.[0]?.payload?.time ?? value;
+    const date = new Date(rawTimestamp as number);
+
+    if (Number.isNaN(date.getTime())) {
+      return String(rawTimestamp ?? value ?? "");
+    }
+
+    return date.toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  };
 
   return (
     <div className="container mx-auto space-y-6 p-6">
@@ -386,7 +485,13 @@ export default function DashboardPage() {
             <CardContent>
               <ChartContainer config={chartConfig} className="h-75">
                 <LineChart data={networkHistory || []}>
-                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent
+                        labelFormatter={formatTooltipTimestamp}
+                      />
+                    }
+                  />
                   <XAxis
                     dataKey="timestamp"
                     tickFormatter={(ts) =>
@@ -404,6 +509,8 @@ export default function DashboardPage() {
                     stroke="var(--chart-1)"
                     name="Total Nodes"
                     strokeWidth={2}
+                    dot={false}
+                    activeDot={false}
                   />
                   <Line
                     type="monotone"
@@ -411,6 +518,8 @@ export default function DashboardPage() {
                     stroke="var(--chart-2)"
                     name="Active Nodes"
                     strokeWidth={2}
+                    dot={false}
+                    activeDot={false}
                   />
                 </LineChart>
               </ChartContainer>
@@ -435,7 +544,13 @@ export default function DashboardPage() {
                       usedStorage: point.usedStorage / 1024 ** 3,
                     })) || []
                   }>
-                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent
+                        labelFormatter={formatTooltipTimestamp}
+                      />
+                    }
+                  />
                   <XAxis
                     dataKey="timestamp"
                     tickFormatter={(ts) =>
@@ -453,6 +568,8 @@ export default function DashboardPage() {
                     stroke="var(--chart-1)"
                     name="Total Storage (GB)"
                     strokeWidth={2}
+                    dot={false}
+                    activeDot={false}
                   />
                   <Line
                     type="monotone"
@@ -460,6 +577,8 @@ export default function DashboardPage() {
                     stroke="var(--chart-2)"
                     name="Used Storage (GB)"
                     strokeWidth={2}
+                    dot={false}
+                    activeDot={false}
                   />
                 </LineChart>
               </ChartContainer>
@@ -475,7 +594,7 @@ export default function DashboardPage() {
         <CardHeader>
           <CardTitle>Network Nodes</CardTitle>
           <CardDescription>
-            Showing {filteredNodes.length} of {nodes.length} nodes
+            Showing {filteredGroups.length} of {nodeGroups.length} pubkeys
           </CardDescription>
           <div className="mt-4 flex gap-4">
             <Input
@@ -503,38 +622,86 @@ export default function DashboardPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Public Key</TableHead>
-                  <TableHead>IP Address</TableHead>
-                  <TableHead>Port</TableHead>
+                  <TableHead>Addresses</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Version</TableHead>
+                  <TableHead>Versions</TableHead>
                   <TableHead>Uptime</TableHead>
                   <TableHead>Last Seen</TableHead>
+                  <TableHead>Storage</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredNodes.length === 0 ? (
+                {filteredGroups.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={8}
                       className="text-muted-foreground text-center">
                       No nodes found
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredNodes.map((node) => (
-                    <TableRow key={node.id}>
+                  filteredGroups.map((group) => (
+                    <TableRow key={group.pubkey}>
                       <TableCell className="font-mono text-sm">
-                        {truncateKey(node.publicKey)}
+                        <Link
+                          href={`/node/${group.pubkey}`}
+                          className="text-primary hover:underline">
+                          {truncateKey(group.pubkey)}
+                        </Link>
                       </TableCell>
-                      <TableCell>{node.ipAddress}</TableCell>
-                      <TableCell>{node.port}</TableCell>
-                      <TableCell>{getStatusBadge(node.status)}</TableCell>
+                      <TableCell className="space-y-1 text-xs">
+                        {group.addresses.map((addr) => (
+                          <div key={addr.id} className="text-muted-foreground">
+                            {addr.ipAddress}:{addr.port}
+                          </div>
+                        ))}
+                      </TableCell>
+                      <TableCell>{getStatusBadge(group.status)}</TableCell>
                       <TableCell className="font-mono text-sm">
-                        {node.version}
+                        <div className="flex flex-wrap gap-1">
+                          <Badge variant="outline">
+                            {group.primary.version}
+                          </Badge>
+                          {group.versions
+                            .filter((v) => v !== group.primary.version)
+                            .map((version) => (
+                              <Badge
+                                key={version}
+                                variant="secondary"
+                                className="text-[10px]">
+                                {version}
+                              </Badge>
+                            ))}
+                        </div>
                       </TableCell>
-                      <TableCell>{formatUptime(node.uptime)}</TableCell>
+                      <TableCell>{formatUptime(group.uptime)}</TableCell>
                       <TableCell className="text-muted-foreground">
-                        {formatLastSeen(node.lastSeen)}
+                        {formatLastSeen(group.lastSeen)}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-xs">
+                        {group.totalStorageCapacity || group.totalStorageUsed
+                          ? (() => {
+                              const toGB = (bytes: number) =>
+                                (bytes / 1024 ** 3).toFixed(2);
+                              const usedGB = toGB(group.totalStorageUsed);
+                              const totalGB = toGB(group.totalStorageCapacity);
+                              const percent =
+                                group.totalStorageCapacity > 0
+                                  ? (group.totalStorageUsed /
+                                      group.totalStorageCapacity) *
+                                    100
+                                  : undefined;
+                              return (
+                                <span>
+                                  {usedGB} / {totalGB} GB
+                                  {percent !== undefined &&
+                                    !Number.isNaN(percent) && (
+                                      <span> ({percent.toFixed(1)}%)</span>
+                                    )}
+                                </span>
+                              );
+                            })()
+                          : "N/A"}
                       </TableCell>
                     </TableRow>
                   ))

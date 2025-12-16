@@ -4,3 +4,4 @@ export * from "./useNetworkStats";
 export * from "./useHealthCheck";
 export * from "./useNetworkHistory";
 export * from "./usePodHistory";
+export * from "./useNodeMetrics";

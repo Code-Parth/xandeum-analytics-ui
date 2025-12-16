@@ -101,6 +101,34 @@ export class PodsDbService {
   }
 
   /**
+   * Get historical snapshots for a specific pubkey (across addresses)
+   */
+  async getPodHistoryByPubkey(
+    pubkey: string,
+    startTime: Date,
+    endTime: Date = new Date(),
+  ): Promise<PodSnapshot[]> {
+    try {
+      const snapshots = await db
+        .select()
+        .from(podsSnapshot)
+        .where(
+          and(
+            eq(podsSnapshot.pubkey, pubkey),
+            gte(podsSnapshot.snapshotTimestamp, startTime),
+            sql`${podsSnapshot.snapshotTimestamp} <= ${endTime}`,
+          ),
+        )
+        .orderBy(podsSnapshot.snapshotTimestamp);
+
+      return snapshots;
+    } catch (error) {
+      Logger.error("Failed to get pubkey history", { pubkey, error });
+      throw error;
+    }
+  }
+
+  /**
    * Get network statistics over time
    */
   async getNetworkHistory(

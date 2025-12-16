@@ -34,6 +34,17 @@ export interface NetworkStats {
   lastUpdated: Date;
 }
 
+export interface NodeMetricPoint {
+  timestamp: Date;
+  latencyMs: number;
+  version?: string;
+  uptime?: number;
+}
+
+export interface NodeDetail extends PNode {
+  availableVersions?: string[];
+}
+
 // Backend response types (before transformation)
 export interface PodResponse {
   address: string;
