@@ -31,6 +31,7 @@ import { Line, LineChart, XAxis, YAxis, Legend } from "recharts";
 import { formatBytes } from "@/lib/utils";
 import type { NodeStatus } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ChartInfoHover } from "@/components/chart-info-hover";
 
 function formatLastSeen(date: Date | undefined) {
   if (!date) return "Unknown";
@@ -352,9 +353,19 @@ export default function NodeDetailPage() {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card>
-          <CardHeader>
-            <CardTitle>Identity</CardTitle>
-            <CardDescription>Public key and addresses</CardDescription>
+          <CardHeader className="flex flex-row items-start justify-between space-y-0">
+            <div>
+              <CardTitle>Identity</CardTitle>
+              <CardDescription>Public key and addresses</CardDescription>
+            </div>
+            <ChartInfoHover
+              ariaLabel="Node identity info"
+              items={[
+                { label: "Data source", value: "Latest nodes snapshot" },
+                { label: "Metrics", value: "Pubkey and all known addresses" },
+                { label: "Time", value: "Current snapshot" },
+              ]}
+            />
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="font-mono text-sm break-all">{pubkey}</div>
@@ -382,9 +393,19 @@ export default function NodeDetailPage() {
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Versions</CardTitle>
-            <CardDescription>Current and historical</CardDescription>
+          <CardHeader className="flex flex-row items-start justify-between space-y-0">
+            <div>
+              <CardTitle>Versions</CardTitle>
+              <CardDescription>Current and historical</CardDescription>
+            </div>
+            <ChartInfoHover
+              ariaLabel="Node versions info"
+              items={[
+                { label: "Data source", value: "Node snapshot + metrics history" },
+                { label: "Metrics", value: "Current version + known versions" },
+                { label: "Time", value: "Current snapshot (history if present)" },
+              ]}
+            />
           </CardHeader>
           <CardContent className="space-y-2">
             <div>
@@ -408,9 +429,19 @@ export default function NodeDetailPage() {
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Status</CardTitle>
-            <CardDescription>Health snapshot</CardDescription>
+          <CardHeader className="flex flex-row items-start justify-between space-y-0">
+            <div>
+              <CardTitle>Status</CardTitle>
+              <CardDescription>Health snapshot</CardDescription>
+            </div>
+            <ChartInfoHover
+              ariaLabel="Node status info"
+              items={[
+                { label: "Data source", value: "Latest nodes snapshot" },
+                { label: "Metrics", value: "Last seen and uptime" },
+                { label: "Time", value: "Current snapshot" },
+              ]}
+            />
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="flex items-center justify-between">
@@ -430,11 +461,24 @@ export default function NodeDetailPage() {
 
       {nodesForPubkey.some((n) => n.performance) && (
         <Card>
-          <CardHeader>
-            <CardTitle>Storage by address</CardTitle>
-            <CardDescription>
-              Committed and used storage for this pubkey
-            </CardDescription>
+          <CardHeader className="flex flex-row items-start justify-between space-y-0">
+            <div>
+              <CardTitle>Storage by address</CardTitle>
+              <CardDescription>
+                Committed and used storage for this pubkey
+              </CardDescription>
+            </div>
+            <ChartInfoHover
+              ariaLabel="Storage by address info"
+              items={[
+                { label: "Data source", value: "Latest nodes snapshot" },
+                {
+                  label: "Metrics",
+                  value: "Committed vs used storage per address (GB)",
+                },
+                { label: "Time", value: "Current snapshot" },
+              ]}
+            />
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <div className="text-muted-foreground flex flex-wrap gap-4 text-xs">
@@ -487,12 +531,22 @@ export default function NodeDetailPage() {
                     </div>
                     <div className="flex flex-wrap items-center gap-3 text-xs">
                       <span>
+                        <span
+                          aria-hidden
+                          className="mr-1 inline-block h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: "var(--chart-1)" }}
+                        />
                         Committed:{" "}
                         <span className="text-foreground font-medium">
                           {formatBytes(capacity)}
                         </span>
                       </span>
                       <span>
+                        <span
+                          aria-hidden
+                          className="mr-1 inline-block h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: "var(--chart-2)" }}
+                        />
                         Used:{" "}
                         <span className="text-foreground font-medium">
                           {formatBytes(used)}
@@ -563,17 +617,33 @@ export default function NodeDetailPage() {
         <>
           {/* Summary Card - All addresses overview */}
           <Card>
-            <CardHeader>
-              <CardTitle>Addresses Overview</CardTitle>
-              <CardDescription>
-                Status summary for all{" "}
-                {
-                  Array.from(
-                    new Set([...latencyAddresses, ...storageAddresses]),
-                  ).length
-                }{" "}
-                address(es)
-              </CardDescription>
+            <CardHeader className="flex flex-row items-start justify-between space-y-0">
+              <div>
+                <CardTitle>Addresses Overview</CardTitle>
+                <CardDescription>
+                  Status summary for all{" "}
+                  {
+                    Array.from(
+                      new Set([...latencyAddresses, ...storageAddresses]),
+                    ).length
+                  }{" "}
+                  address(es)
+                </CardDescription>
+              </div>
+              <ChartInfoHover
+                ariaLabel="Addresses overview info"
+                items={[
+                  {
+                    label: "Data source",
+                    value: "Node metrics + snapshot (includes historical addresses)",
+                  },
+                  { label: "Metrics", value: "Version, uptime, status by address" },
+                  {
+                    label: "Time range",
+                    value: `${hours}-hour window; some addresses may be historical only`,
+                  },
+                ]}
+              />
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
@@ -614,7 +684,7 @@ export default function NodeDetailPage() {
                         </div>
                       ) : (
                         <span className="text-muted-foreground text-sm">
-                          Historical data only (not in current snapshot)
+                          Historical only — present in this time window, not in the latest snapshot
                         </span>
                       )}
                     </div>
@@ -677,7 +747,9 @@ export default function NodeDetailPage() {
                           </div>
                         </>
                       ) : (
-                        <Badge variant="secondary">Historical</Badge>
+                        <Badge variant="secondary">
+                          Historical (not in current snapshot)
+                        </Badge>
                       )}
                     </div>
                   </div>
@@ -685,11 +757,21 @@ export default function NodeDetailPage() {
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                     {/* Latency Chart */}
                     <Card>
-                      <CardHeader>
-                        <CardTitle className="text-base">Latency</CardTitle>
-                        <CardDescription>
-                          Time since last seen over time
-                        </CardDescription>
+                      <CardHeader className="flex flex-row items-start justify-between space-y-0">
+                        <div>
+                          <CardTitle className="text-base">Latency</CardTitle>
+                          <CardDescription>
+                            Time since last seen over time
+                          </CardDescription>
+                        </div>
+                        <ChartInfoHover
+                          ariaLabel="Latency chart info"
+                          items={[
+                            { label: "Data source", value: "Node metrics API" },
+                            { label: "Metrics", value: "Latency by address (seconds)" },
+                            { label: "Time range", value: `${hours}-hour window` },
+                          ]}
+                        />
                       </CardHeader>
                       <CardContent>
                         {latencyData.length === 0 ? (
@@ -737,13 +819,44 @@ export default function NodeDetailPage() {
 
                     {/* Storage Chart */}
                     <Card>
-                      <CardHeader>
-                        <CardTitle className="text-base">
-                          Storage Usage
-                        </CardTitle>
-                        <CardDescription>
-                          Committed vs used storage over time
-                        </CardDescription>
+                      <CardHeader className="flex flex-row items-start justify-between space-y-0">
+                        <div>
+                          <CardTitle className="text-base">
+                            Storage Usage
+                          </CardTitle>
+                          <CardDescription>
+                            Committed vs used storage over time
+                          </CardDescription>
+                          <div className="text-muted-foreground mt-1 flex flex-wrap gap-3 text-xs">
+                            <span className="inline-flex items-center gap-1">
+                              <span
+                                aria-hidden
+                                className="inline-block h-2.5 w-2.5 rounded-full"
+                                style={{ backgroundColor: "var(--chart-1)" }}
+                              />
+                              Committed
+                            </span>
+                            <span className="inline-flex items-center gap-1">
+                              <span
+                                aria-hidden
+                                className="inline-block h-2.5 w-2.5 rounded-full"
+                                style={{ backgroundColor: "var(--chart-2)" }}
+                              />
+                              Used
+                            </span>
+                          </div>
+                        </div>
+                        <ChartInfoHover
+                          ariaLabel="Storage chart info"
+                          items={[
+                            { label: "Data source", value: "Node metrics API" },
+                            {
+                              label: "Metrics",
+                              value: "Committed vs used storage per address (GB)",
+                            },
+                            { label: "Time range", value: `${hours}-hour window` },
+                          ]}
+                        />
                       </CardHeader>
                       <CardContent>
                         {storageData.length === 0 ? (

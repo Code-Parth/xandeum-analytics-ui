@@ -34,6 +34,7 @@ import {
   LineChart,
   Line,
 } from "recharts";
+import { ChartInfoHover } from "@/components/chart-info-hover";
 import { ThemeToggleButton } from "@/components/ui/theme-toggle-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTable } from "./data-table";
@@ -464,11 +465,27 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Status Distribution Pie Chart */}
         <Card>
-          <CardHeader>
-            <CardTitle>Node Status Distribution</CardTitle>
-            <CardDescription>
-              Current status of all network nodes
-            </CardDescription>
+          <CardHeader className="flex flex-row items-start justify-between space-y-0">
+            <div>
+              <CardTitle>Node Status Distribution</CardTitle>
+              <CardDescription>
+                Current status of all network nodes
+              </CardDescription>
+            </div>
+            <ChartInfoHover
+              ariaLabel="Node status chart info"
+              items={[
+                {
+                  label: "Data source",
+                  value: "Latest network stats + nodes list",
+                },
+                {
+                  label: "Metrics",
+                  value: "Active, inactive, syncing node counts",
+                },
+                { label: "Time", value: "Current snapshot" },
+              ]}
+            />
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfig} className="h-75">
@@ -494,12 +511,22 @@ export default function DashboardPage() {
 
         {/* Storage Usage Pie Chart */}
         <Card>
-          <CardHeader>
-            <CardTitle>Storage Usage</CardTitle>
-            <CardDescription>
-              Used vs available storage (Total:{" "}
-              {(stats.totalStorage / 1024 ** 3).toFixed(2)} GB)
-            </CardDescription>
+          <CardHeader className="flex flex-row items-start justify-between space-y-0">
+            <div>
+              <CardTitle>Storage Usage</CardTitle>
+              <CardDescription>
+                Used vs available storage (Total:{" "}
+                {(stats.totalStorage / 1024 ** 3).toFixed(2)} GB)
+              </CardDescription>
+            </div>
+            <ChartInfoHover
+              ariaLabel="Storage usage chart info"
+              items={[
+                { label: "Data source", value: "Latest network stats" },
+                { label: "Metrics", value: "Used vs available storage (GB)" },
+                { label: "Time", value: "Current snapshot" },
+              ]}
+            />
           </CardHeader>
           <CardContent>
             <ChartContainer config={storageChartConfig} className="h-75">
@@ -558,11 +585,24 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* Active Nodes Over Time */}
           <Card>
-            <CardHeader>
-              <CardTitle>Active Nodes Trend</CardTitle>
-              <CardDescription>
-                Node activity over the last {timeRange} hours
-              </CardDescription>
+            <CardHeader className="flex flex-row items-start justify-between space-y-0">
+              <div>
+                <CardTitle>Active Nodes Trend</CardTitle>
+                <CardDescription>
+                  Node activity over the last {timeRange} hours
+                </CardDescription>
+              </div>
+              <ChartInfoHover
+                ariaLabel="Active nodes trend info"
+                items={[
+                  { label: "Data source", value: "Network history API" },
+                  {
+                    label: "Metrics",
+                    value: "Total vs active nodes over time",
+                  },
+                  { label: "Time range", value: `${timeRange}-hour window` },
+                ]}
+              />
             </CardHeader>
             <CardContent>
               {!networkHistory ? (
@@ -618,11 +658,24 @@ export default function DashboardPage() {
 
           {/* Storage Trend */}
           <Card>
-            <CardHeader>
-              <CardTitle>Storage Trend</CardTitle>
-              <CardDescription>
-                Storage usage over the last {timeRange} hours
-              </CardDescription>
+            <CardHeader className="flex flex-row items-start justify-between space-y-0">
+              <div>
+                <CardTitle>Storage Trend</CardTitle>
+                <CardDescription>
+                  Storage usage over the last {timeRange} hours
+                </CardDescription>
+              </div>
+              <ChartInfoHover
+                ariaLabel="Storage trend info"
+                items={[
+                  { label: "Data source", value: "Network history API" },
+                  {
+                    label: "Metrics",
+                    value: "Total vs used storage (GB) over time",
+                  },
+                  { label: "Time range", value: `${timeRange}-hour window` },
+                ]}
+              />
             </CardHeader>
             <CardContent>
               {!networkHistory ? (
@@ -687,11 +740,21 @@ export default function DashboardPage() {
 
       {/* Nodes Table */}
       <Card>
-        <CardHeader>
-          <CardTitle>Network Nodes</CardTitle>
-          <CardDescription>
-            All pNodes on the network with sortable columns
-          </CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between space-y-0">
+          <div>
+            <CardTitle>Network Nodes</CardTitle>
+            <CardDescription>
+              All pNodes on the network with sortable columns
+            </CardDescription>
+          </div>
+          <ChartInfoHover
+            ariaLabel="Network nodes table info"
+            items={[
+              { label: "Data source", value: "Latest nodes snapshot" },
+              { label: "Metrics", value: "Grouped by pubkey, addresses, storage" },
+              { label: "Time", value: "Current snapshot (sortable)" },
+            ]}
+          />
         </CardHeader>
         <CardContent>
           <DataTable
