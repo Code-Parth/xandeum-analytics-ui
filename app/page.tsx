@@ -39,6 +39,7 @@ import { ThemeToggleButton } from "@/components/ui/theme-toggle-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTable } from "./data-table";
 import { columns, type NodeGroup } from "./columns";
+import { formatBytes } from "@/lib/utils";
 
 export default function DashboardPage() {
   const {
@@ -151,12 +152,13 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i}>
-              <CardHeader>
+              <CardHeader className="pb-3">
                 <Skeleton className="h-4 w-24" />
               </CardHeader>
               <CardContent>
-                <Skeleton className="mb-2 h-8 w-16" />
-                <Skeleton className="h-3 w-32" />
+                <Skeleton className="mb-2 h-9 w-20" />
+                <Skeleton className="mb-2 h-2 w-full rounded-full" />
+                <Skeleton className="mt-2 h-3 w-32" />
               </CardContent>
             </Card>
           ))}
@@ -317,6 +319,9 @@ export default function DashboardPage() {
     },
   } satisfies ChartConfig;
 
+  const storageUsagePercent =
+    stats.totalStorage > 0 ? (stats.usedStorage / stats.totalStorage) * 100 : 0;
+
   // Generic chart config for line charts and status pie chart
   const chartConfig = {
     totalNodes: {
@@ -390,70 +395,135 @@ export default function DashboardPage() {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader>
+        {/* Nodes (Active of Total) */}
+        <Card className="h-full">
+          <CardHeader className="pb-3">
             <CardTitle className="text-muted-foreground text-sm font-medium">
-              Total Nodes
+              Nodes
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalNodes}</div>
-            <p className="text-muted-foreground mt-1 text-xs">
-              Network participants
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-muted-foreground text-sm font-medium">
-              Active Nodes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <div className="text-2xl font-bold">{stats.activeNodes}</div>
-              <Badge variant="default">
+          <CardContent className="flex h-full flex-col gap-3">
+            <div className="mb-2 flex items-baseline gap-2">
+              <div className="text-3xl font-bold">{stats.activeNodes}</div>
+              <span className="text-muted-foreground text-sm">
+                of {stats.totalNodes} total
+              </span>
+            </div>
+            <div className="mt-auto flex items-center gap-2">
+              <div className="bg-muted h-2 flex-1 overflow-hidden rounded-full">
+                <div
+                  className="bg-chart-2 h-full rounded-full transition-all"
+                  style={{
+                    width: `${
+                      stats.totalNodes > 0
+                        ? (stats.activeNodes / stats.totalNodes) * 100
+                        : 0
+                    }%`,
+                  }}
+                />
+              </div>
+              <Badge variant="outline" className="text-xs">
                 {stats.totalNodes > 0
                   ? ((stats.activeNodes / stats.totalNodes) * 100).toFixed(1)
                   : "0.0"}
                 %
               </Badge>
             </div>
-            <p className="text-muted-foreground mt-1 text-xs">
-              Currently online
+            <p className="text-muted-foreground text-xs">
+              Active nodes currently online
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
+        {/* Network Health */}
+        <Card className="h-full">
+          <CardHeader className="pb-3">
             <CardTitle className="text-muted-foreground text-sm font-medium">
               Network Health
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats.networkHealth.toFixed(1)}
+          <CardContent className="flex h-full flex-col gap-3">
+            <div className="mb-2 flex items-baseline gap-2">
+              <div className="text-3xl font-bold">
+                {stats.networkHealth.toFixed(1)}
+              </div>
+              <span className="text-muted-foreground text-sm">/ 100</span>
             </div>
-            <p className="text-muted-foreground mt-1 text-xs">
+            <div className="mt-auto flex items-center gap-2">
+              <div className="bg-muted h-2 flex-1 overflow-hidden rounded-full">
+                <div
+                  className="bg-chart-3 h-full rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(100, Math.max(0, stats.networkHealth))}%`,
+                  }}
+                />
+              </div>
+            </div>
+            <p className="text-muted-foreground text-xs">
               Health score (0-100)
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
+        {/* Average Uptime */}
+        <Card className="h-full">
+          <CardHeader className="pb-3">
             <CardTitle className="text-muted-foreground text-sm font-medium">
               Average Uptime
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats.averageUptime.toFixed(1)}%
+          <CardContent className="flex h-full flex-col gap-3">
+            <div className="mb-2 flex items-baseline gap-2">
+              <div className="text-3xl font-bold">
+                {stats.averageUptime.toFixed(1)}
+              </div>
+              <span className="text-muted-foreground text-sm">%</span>
             </div>
-            <p className="text-muted-foreground mt-1 text-xs">
-              Network average
+            <div className="mt-auto flex items-center gap-2">
+              <div className="bg-muted h-2 flex-1 overflow-hidden rounded-full">
+                <div
+                  className="bg-chart-4 h-full rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(100, Math.max(0, stats.averageUptime))}%`,
+                  }}
+                />
+              </div>
+            </div>
+            <p className="text-muted-foreground text-xs">Network average</p>
+          </CardContent>
+        </Card>
+
+        {/* Storage Usage */}
+        <Card className="h-full">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-muted-foreground text-sm font-medium">
+              Storage Usage
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex h-full flex-col gap-3">
+            <div className="mb-2 flex items-baseline gap-2">
+              <div className="text-3xl font-bold">
+                {formatBytes(stats.usedStorage)}
+              </div>
+              <span className="text-muted-foreground text-sm">
+                of {formatBytes(stats.totalStorage)}
+              </span>
+            </div>
+            <div className="mt-auto flex items-center gap-2">
+              <div className="bg-muted h-2 flex-1 overflow-hidden rounded-full">
+                <div
+                  className="bg-chart-5 h-full rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(100, Math.max(0, storageUsagePercent))}%`,
+                  }}
+                />
+              </div>
+              <Badge variant="outline" className="text-xs">
+                {storageUsagePercent.toFixed(1)}%
+              </Badge>
+            </div>
+            <p className="text-muted-foreground text-xs">
+              Actual storage used vs total capacity
             </p>
           </CardContent>
         </Card>
