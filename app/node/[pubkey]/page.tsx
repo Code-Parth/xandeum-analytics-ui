@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useNodes, useNodeMetrics } from "@/hooks";
+import { useNodes, useNodeMetrics, useNodeActivity } from "@/hooks";
+import { ActivityTimeline } from "@/components/activity-timeline";
 import {
   Card,
   CardContent,
@@ -101,6 +102,12 @@ export default function NodeDetailPage() {
     isLoading: metricsLoading,
     error: metricsError,
   } = useNodeMetrics({ pubkey, hours, enabled: !!pubkey });
+
+  const {
+    data: activityData,
+    isLoading: activityLoading,
+    error: activityError,
+  } = useNodeActivity({ pubkey, hours, enabled: !!pubkey });
 
   // Latency chart config
   const latencyChartConfig = {
@@ -704,6 +711,16 @@ export default function NodeDetailPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Activity Timeline */}
+          <ActivityTimeline
+            data={activityData?.addresses}
+            isLoading={activityLoading}
+            error={activityError}
+            startTime={activityData?.startTime}
+            endTime={activityData?.endTime}
+            hours={hours}
+          />
 
           <Separator />
 

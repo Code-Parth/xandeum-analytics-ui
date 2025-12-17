@@ -49,6 +49,33 @@ export interface NodeDetail extends PNode {
   availableVersions?: string[];
 }
 
+// Activity tracking types
+export type ActivityStatus = "active" | "inactive";
+
+export interface ActivityPeriod {
+  address: string;
+  startTime: Date;
+  endTime: Date;
+  status: ActivityStatus;
+  durationMs: number;
+}
+
+export interface AddressActivitySummary {
+  address: string;
+  periods: ActivityPeriod[];
+  totalActiveMs: number;
+  totalInactiveMs: number;
+  activePercent: number;
+  gapCount: number;
+}
+
+export interface NodeActivityResponse {
+  pubkey: string;
+  addresses: AddressActivitySummary[];
+  startTime: Date;
+  endTime: Date;
+}
+
 // Backend response types (before transformation)
 export interface PodResponse {
   address: string;

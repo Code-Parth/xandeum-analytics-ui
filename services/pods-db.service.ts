@@ -5,7 +5,11 @@ import {
   type PodSnapshot,
 } from "@/db/schema";
 import { desc, eq, gte, and, sql } from "drizzle-orm";
-import type { PodResponse } from "@/types";
+import type {
+  PodResponse,
+  ActivityPeriod,
+  AddressActivitySummary,
+} from "@/types";
 import { Logger } from "@/utils/logger";
 
 export class PodsDbService {
@@ -233,6 +237,195 @@ export class PodsDbService {
       return timestamps.map((row) => row.timestamp);
     } catch (error) {
       Logger.error("Failed to get snapshot timestamps", { error });
+      throw error;
+    }
+  }
+
+  /**
+   * Get activity periods for a specific pubkey
+   * Analyzes snapshots to determine when each address was active vs inactive
+   *
+   * @param pubkey - The node's public key
+   * @param startTime - Start of the time range
+   * @param endTime - End of the time range
+   * @param gapThresholdMs - Gap threshold in ms to consider as inactive (default: 5 minutes)
+   */
+  async getNodeActivityPeriods(
+    pubkey: string,
+    startTime: Date,
+    endTime: Date = new Date(),
+    gapThresholdMs: number = 5 * 60 * 1000,
+  ): Promise<AddressActivitySummary[]> {
+    try {
+      // Get all snapshots for this pubkey in the time range
+      const snapshots = await this.getPodHistoryByPubkey(
+        pubkey,
+        startTime,
+        endTime,
+      );
+
+      if (snapshots.length === 0) {
+        return [];
+      }
+
+      // Group snapshots by address
+      const byAddress = new Map<string, PodSnapshot[]>();
+      for (const snapshot of snapshots) {
+        const existing = byAddress.get(snapshot.address) || [];
+        existing.push(snapshot);
+        byAddress.set(snapshot.address, existing);
+      }
+
+      const result: AddressActivitySummary[] = [];
+
+      for (const [address, addressSnapshots] of byAddress) {
+        // Sort by snapshot timestamp
+        const sorted = addressSnapshots.sort(
+          (a, b) =>
+            new Date(a.snapshotTimestamp).getTime() -
+            new Date(b.snapshotTimestamp).getTime(),
+        );
+
+        const periods: ActivityPeriod[] = [];
+        let currentPeriodStart = new Date(sorted[0].snapshotTimestamp);
+        let lastSnapshotTime = new Date(sorted[0].snapshotTimestamp);
+
+        // Determine if first snapshot was active based on last_seen_timestamp
+        const isActiveSnapshot = (snapshot: PodSnapshot): boolean => {
+          const snapshotTime = new Date(snapshot.snapshotTimestamp).getTime();
+          const lastSeenTime = (snapshot.lastSeenTimestamp ?? 0) * 1000;
+          const timeSinceLastSeen = snapshotTime - lastSeenTime;
+          // Node is active if last seen within 2 minutes
+          return timeSinceLastSeen <= 120 * 1000;
+        };
+
+        let currentStatus: "active" | "inactive" = isActiveSnapshot(sorted[0])
+          ? "active"
+          : "inactive";
+
+        // Add initial period from startTime to first snapshot if there's a gap
+        const firstSnapshotTime = new Date(sorted[0].snapshotTimestamp);
+        if (
+          firstSnapshotTime.getTime() - startTime.getTime() >
+          gapThresholdMs
+        ) {
+          periods.push({
+            address,
+            startTime: startTime,
+            endTime: firstSnapshotTime,
+            status: "inactive",
+            durationMs: firstSnapshotTime.getTime() - startTime.getTime(),
+          });
+          currentPeriodStart = firstSnapshotTime;
+        }
+
+        // Iterate through snapshots to detect gaps and status changes
+        for (let i = 1; i < sorted.length; i++) {
+          const prevSnapshot = sorted[i - 1];
+          const currentSnapshot = sorted[i];
+          const prevTime = new Date(prevSnapshot.snapshotTimestamp);
+          const currentTime = new Date(currentSnapshot.snapshotTimestamp);
+          const gap = currentTime.getTime() - prevTime.getTime();
+          const snapshotActive = isActiveSnapshot(currentSnapshot);
+
+          // Check if there's a gap (missing snapshots = inactive period)
+          if (gap > gapThresholdMs) {
+            // End current period at previous snapshot
+            if (currentPeriodStart.getTime() < prevTime.getTime()) {
+              periods.push({
+                address,
+                startTime: currentPeriodStart,
+                endTime: prevTime,
+                status: currentStatus,
+                durationMs: prevTime.getTime() - currentPeriodStart.getTime(),
+              });
+            }
+
+            // Add inactive gap period
+            periods.push({
+              address,
+              startTime: prevTime,
+              endTime: currentTime,
+              status: "inactive",
+              durationMs: gap,
+            });
+
+            // Start new period
+            currentPeriodStart = currentTime;
+            currentStatus = snapshotActive ? "active" : "inactive";
+          } else if (snapshotActive !== (currentStatus === "active")) {
+            // Status changed without gap
+            periods.push({
+              address,
+              startTime: currentPeriodStart,
+              endTime: currentTime,
+              status: currentStatus,
+              durationMs: currentTime.getTime() - currentPeriodStart.getTime(),
+            });
+            currentPeriodStart = currentTime;
+            currentStatus = snapshotActive ? "active" : "inactive";
+          }
+
+          lastSnapshotTime = currentTime;
+        }
+
+        // Close the final period
+        const finalEndTime =
+          lastSnapshotTime.getTime() < endTime.getTime()
+            ? lastSnapshotTime
+            : endTime;
+
+        if (currentPeriodStart.getTime() < finalEndTime.getTime()) {
+          periods.push({
+            address,
+            startTime: currentPeriodStart,
+            endTime: finalEndTime,
+            status: currentStatus,
+            durationMs: finalEndTime.getTime() - currentPeriodStart.getTime(),
+          });
+        }
+
+        // Add trailing inactive period if last snapshot is before endTime
+        if (endTime.getTime() - lastSnapshotTime.getTime() > gapThresholdMs) {
+          periods.push({
+            address,
+            startTime: lastSnapshotTime,
+            endTime: endTime,
+            status: "inactive",
+            durationMs: endTime.getTime() - lastSnapshotTime.getTime(),
+          });
+        }
+
+        // Calculate summary stats
+        let totalActiveMs = 0;
+        let totalInactiveMs = 0;
+        let gapCount = 0;
+
+        for (const period of periods) {
+          if (period.status === "active") {
+            totalActiveMs += period.durationMs;
+          } else {
+            totalInactiveMs += period.durationMs;
+            gapCount++;
+          }
+        }
+
+        const totalMs = totalActiveMs + totalInactiveMs;
+        const activePercent = totalMs > 0 ? (totalActiveMs / totalMs) * 100 : 0;
+
+        result.push({
+          address,
+          periods,
+          totalActiveMs,
+          totalInactiveMs,
+          activePercent,
+          gapCount,
+        });
+      }
+
+      return result;
+    } catch (error) {
+      Logger.error("Failed to get node activity periods", { pubkey, error });
       throw error;
     }
   }
