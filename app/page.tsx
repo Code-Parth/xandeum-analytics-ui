@@ -555,6 +555,7 @@ export default function DashboardPage() {
                 },
                 { label: "Time", value: "Current snapshot" },
               ]}
+              docsAnchor="node-status-distribution-pie-chart"
             />
           </CardHeader>
           <CardContent>
@@ -596,6 +597,7 @@ export default function DashboardPage() {
                 { label: "Metrics", value: "Used vs available storage (GB)" },
                 { label: "Time", value: "Current snapshot" },
               ]}
+              docsAnchor="storage-usage-pie-chart"
             />
           </CardHeader>
           <CardContent>
@@ -672,6 +674,7 @@ export default function DashboardPage() {
                   },
                   { label: "Time range", value: `${timeRange}-hour window` },
                 ]}
+                docsAnchor="active-nodes-trend-line-chart"
               />
             </CardHeader>
             <CardContent>
@@ -745,6 +748,7 @@ export default function DashboardPage() {
                   },
                   { label: "Time range", value: `${timeRange}-hour window` },
                 ]}
+                docsAnchor="storage-trend-line-chart"
               />
             </CardHeader>
             <CardContent>
@@ -827,6 +831,7 @@ export default function DashboardPage() {
               },
               { label: "Time", value: "Current snapshot (sortable)" },
             ]}
+            docsAnchor="data-source"
           />
         </CardHeader>
         <CardContent>

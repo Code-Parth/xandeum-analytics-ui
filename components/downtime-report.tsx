@@ -236,6 +236,7 @@ export function DowntimeReport({
               { label: "Metrics", value: "Downtime incidents and duration" },
               { label: "Time range", value: `${hours}-hour window` },
             ]}
+            docsAnchor="downtime-report"
           />
         </CardHeader>
         <CardContent>
@@ -263,6 +264,7 @@ export function DowntimeReport({
             { label: "Metrics", value: "Incidents, duration, MTTR" },
             { label: "Time range", value: `${hours}-hour window` },
           ]}
+          docsAnchor="downtime-report"
         />
       </CardHeader>
       <CardContent>

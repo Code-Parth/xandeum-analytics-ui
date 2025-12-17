@@ -39,6 +39,9 @@ Xandeum is building a scalable storage layer for Solana dApps. This analytics pl
   - Storage usage per address
   - Version history
   - Uptime and last seen information
+  - Activity Timeline (active/inactive periods visualization)
+  - Activity Heatmap (7x24 grid showing activity patterns)
+  - Downtime Report (incident history and MTTR analysis)
 
 - **UI/UX**
   - Dark/light theme support
@@ -111,6 +114,8 @@ User Interface
 4. **React Hooks** (`hooks/`)
    - `useNodes` - Fetch all nodes
    - `useNodeMetrics` - Fetch node-specific metrics
+   - `useNodeActivity` - Fetch node activity periods
+   - `useNodeHeatmap` - Fetch node activity heatmap
    - `useNetworkStats` - Network-wide statistics
    - `useNetworkHistory` - Historical trends
 
@@ -229,7 +234,9 @@ bun run db:studio
 - `GET /api/health` - Health check endpoint
 - `GET /api/pods/latest` - Get latest pod snapshot
 - `GET /api/pods/history` - Get historical pod data
-- `GET /api/nodes/[pubkey]/metrics` - Get node metrics
+- `GET /api/nodes/[pubkey]/metrics` - Get node metrics history
+- `GET /api/nodes/[pubkey]/activity` - Get node activity periods (active/inactive)
+- `GET /api/nodes/[pubkey]/heatmap` - Get node activity heatmap data
 - `POST /api/rpc` - Proxy for JSON-RPC calls
 
 ### Protected Endpoints (require CRON_SECRET)
@@ -374,7 +381,7 @@ xandeum-analytics-ui/
 │   ├── api/              # API routes
 │   │   ├── cleanup/      # Cleanup endpoint
 │   │   ├── health/       # Health check
-│   │   ├── nodes/        # Node metrics
+│   │   ├── nodes/        # Node metrics, activity, heatmap
 │   │   ├── pods/         # Pod data endpoints
 │   │   ├── rpc/          # RPC proxy
 │   │   └── snapshot/     # Snapshot creation
@@ -384,6 +391,9 @@ xandeum-analytics-ui/
 │   └── globals.css       # Global styles
 ├── components/
 │   ├── ui/               # shadcn/ui components
+│   ├── activity-timeline.tsx
+│   ├── activity-heatmap.tsx
+│   ├── downtime-report.tsx
 │   └── chart-info-hover.tsx
 ├── config/
 │   └── endpoints.ts      # Xandeum RPC endpoints
@@ -393,6 +403,8 @@ xandeum-analytics-ui/
 │   ├── migrations/       # Database migrations
 │   ├── schema.ts         # Drizzle schema
 │   └── index.ts          # Database connection
+├── docs/
+│   └── METRICS_DOCUMENTATION.md  # Charts & calculations docs
 ├── hooks/                # React hooks
 ├── lib/
 │   └── utils.ts          # Utility functions
@@ -426,6 +438,10 @@ Contributions are welcome! Please follow these steps:
 ## License
 
 This project is licensed under the MIT License.
+
+## Documentation
+
+- **[Metrics Documentation](docs/METRICS_DOCUMENTATION.md)**: Comprehensive guide explaining all charts, calculations, and data sources used in the analytics platform.
 
 ## Links
 

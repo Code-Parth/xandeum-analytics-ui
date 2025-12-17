@@ -387,6 +387,7 @@ export default function NodeDetailPage() {
                 { label: "Metrics", value: "Pubkey and all known addresses" },
                 { label: "Time", value: "Current snapshot" },
               ]}
+              docsAnchor="identity-card"
             />
           </CardHeader>
           <CardContent className="space-y-2">
@@ -433,6 +434,7 @@ export default function NodeDetailPage() {
                   value: "Current snapshot (history if present)",
                 },
               ]}
+              docsAnchor="versions-card"
             />
           </CardHeader>
           <CardContent className="space-y-2">
@@ -469,6 +471,7 @@ export default function NodeDetailPage() {
                 { label: "Metrics", value: "Last seen and uptime" },
                 { label: "Time", value: "Current snapshot" },
               ]}
+              docsAnchor="status-card"
             />
           </CardHeader>
           <CardContent className="space-y-2">
@@ -506,6 +509,7 @@ export default function NodeDetailPage() {
                 },
                 { label: "Time", value: "Current snapshot" },
               ]}
+              docsAnchor="storage-usage-chart-per-address"
             />
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
@@ -675,6 +679,7 @@ export default function NodeDetailPage() {
                     value: `${hours}-hour window; some addresses may be historical only`,
                   },
                 ]}
+                docsAnchor="node-detail-page-metrics"
               />
             </CardHeader>
             <CardContent>
@@ -836,6 +841,7 @@ export default function NodeDetailPage() {
                               value: `${hours}-hour window`,
                             },
                           ]}
+                          docsAnchor="latency-chart-per-address"
                         />
                       </CardHeader>
                       <CardContent>
@@ -925,6 +931,7 @@ export default function NodeDetailPage() {
                               value: `${hours}-hour window`,
                             },
                           ]}
+                          docsAnchor="storage-usage-chart-per-address"
                         />
                       </CardHeader>
                       <CardContent>

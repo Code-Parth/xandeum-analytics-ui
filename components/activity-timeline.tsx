@@ -237,6 +237,7 @@ export function ActivityTimeline({
               },
               { label: "Time range", value: `${hours}-hour window` },
             ]}
+            docsAnchor="activity-timeline"
           />
         </CardHeader>
         <CardContent>
@@ -282,6 +283,7 @@ export function ActivityTimeline({
             { label: "Time range", value: `${hours}-hour window` },
             { label: "Gap threshold", value: "5 minutes" },
           ]}
+          docsAnchor="activity-timeline"
         />
       </CardHeader>
       <CardContent>

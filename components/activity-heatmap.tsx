@@ -143,6 +143,7 @@ export function ActivityHeatmap({
               { label: "Metrics", value: "Activity by day/hour" },
               { label: "Time range", value: `${days}-day window` },
             ]}
+            docsAnchor="activity-heatmap"
           />
         </CardHeader>
         <CardContent>
@@ -193,6 +194,7 @@ export function ActivityHeatmap({
             { label: "Metrics", value: "Activity % by day/hour bucket" },
             { label: "Time range", value: `${days}-day window` },
           ]}
+          docsAnchor="activity-heatmap"
         />
       </CardHeader>
       <CardContent>
