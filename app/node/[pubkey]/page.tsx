@@ -3,8 +3,15 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useNodes, useNodeMetrics, useNodeActivity } from "@/hooks";
+import {
+  useNodes,
+  useNodeMetrics,
+  useNodeActivity,
+  useNodeHeatmap,
+} from "@/hooks";
 import { ActivityTimeline } from "@/components/activity-timeline";
+import { ActivityHeatmap } from "@/components/activity-heatmap";
+import { DowntimeReport } from "@/components/downtime-report";
 import {
   Card,
   CardContent,
@@ -108,6 +115,14 @@ export default function NodeDetailPage() {
     isLoading: activityLoading,
     error: activityError,
   } = useNodeActivity({ pubkey, hours, enabled: !!pubkey });
+
+  // Heatmap uses days instead of hours (convert hours to approximate days)
+  const heatmapDays = Math.max(1, Math.ceil(hours / 24));
+  const {
+    data: heatmapData,
+    isLoading: heatmapLoading,
+    error: heatmapError,
+  } = useNodeHeatmap({ pubkey, days: heatmapDays, enabled: !!pubkey });
 
   // Latency chart config
   const latencyChartConfig = {
@@ -719,6 +734,22 @@ export default function NodeDetailPage() {
             error={activityError}
             startTime={activityData?.startTime}
             endTime={activityData?.endTime}
+            hours={hours}
+          />
+
+          {/* Activity Heatmap */}
+          <ActivityHeatmap
+            data={heatmapData?.cells}
+            isLoading={heatmapLoading}
+            error={heatmapError}
+            days={heatmapDays}
+          />
+
+          {/* Downtime Report */}
+          <DowntimeReport
+            data={activityData?.addresses}
+            isLoading={activityLoading}
+            error={activityError}
             hours={hours}
           />
 

@@ -76,6 +76,43 @@ export interface NodeActivityResponse {
   endTime: Date;
 }
 
+// Heatmap types
+export interface HeatmapCell {
+  dayOfWeek: number; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  hour: number; // 0-23
+  totalSnapshots: number;
+  activeSnapshots: number;
+  activityPercent: number;
+}
+
+export interface NodeHeatmapResponse {
+  pubkey: string;
+  cells: HeatmapCell[];
+  startTime: Date;
+  endTime: Date;
+  totalSnapshots: number;
+}
+
+// Downtime report types
+export interface DowntimeIncident {
+  startTime: Date;
+  endTime: Date;
+  durationMs: number;
+  addressesAffected: string[];
+  totalAddresses: number;
+}
+
+export interface DowntimeSummary {
+  totalIncidents: number;
+  totalDowntimeMs: number;
+  longestOutageMs: number;
+  longestOutageTime: Date | null;
+  mttrMs: number; // Mean time to recovery
+  currentStreakMs: number;
+  currentStreakStatus: ActivityStatus;
+  incidents: DowntimeIncident[];
+}
+
 // Backend response types (before transformation)
 export interface PodResponse {
   address: string;

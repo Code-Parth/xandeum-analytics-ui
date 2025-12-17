@@ -9,6 +9,7 @@ import type {
   PodResponse,
   ActivityPeriod,
   AddressActivitySummary,
+  HeatmapCell,
 } from "@/types";
 import { Logger } from "@/utils/logger";
 
@@ -426,6 +427,88 @@ export class PodsDbService {
       return result;
     } catch (error) {
       Logger.error("Failed to get node activity periods", { pubkey, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Get activity heatmap data for a specific pubkey
+   * Aggregates snapshots by day-of-week and hour-of-day
+   *
+   * @param pubkey - The node's public key
+   * @param startTime - Start of the time range
+   * @param endTime - End of the time range
+   */
+  async getNodeActivityHeatmap(
+    pubkey: string,
+    startTime: Date,
+    endTime: Date = new Date(),
+  ): Promise<{ cells: HeatmapCell[]; totalSnapshots: number }> {
+    try {
+      // Get all snapshots for this pubkey in the time range
+      const snapshots = await this.getPodHistoryByPubkey(
+        pubkey,
+        startTime,
+        endTime,
+      );
+
+      if (snapshots.length === 0) {
+        return { cells: [], totalSnapshots: 0 };
+      }
+
+      // Initialize the heatmap grid (7 days x 24 hours)
+      const grid = new Map<string, { total: number; active: number }>();
+
+      // Initialize all cells
+      for (let day = 0; day < 7; day++) {
+        for (let hour = 0; hour < 24; hour++) {
+          grid.set(`${day}-${hour}`, { total: 0, active: 0 });
+        }
+      }
+
+      // Determine if snapshot was active based on last_seen_timestamp
+      const isActiveSnapshot = (snapshot: PodSnapshot): boolean => {
+        const snapshotTime = new Date(snapshot.snapshotTimestamp).getTime();
+        const lastSeenTime = (snapshot.lastSeenTimestamp ?? 0) * 1000;
+        const timeSinceLastSeen = snapshotTime - lastSeenTime;
+        // Node is active if last seen within 2 minutes
+        return timeSinceLastSeen <= 120 * 1000;
+      };
+
+      // Aggregate snapshots into the grid
+      for (const snapshot of snapshots) {
+        const snapshotDate = new Date(snapshot.snapshotTimestamp);
+        const dayOfWeek = snapshotDate.getDay(); // 0 = Sunday
+        const hour = snapshotDate.getHours();
+        const key = `${dayOfWeek}-${hour}`;
+
+        const cell = grid.get(key)!;
+        cell.total++;
+        if (isActiveSnapshot(snapshot)) {
+          cell.active++;
+        }
+      }
+
+      // Convert to array of HeatmapCell
+      const cells: HeatmapCell[] = [];
+      for (let day = 0; day < 7; day++) {
+        for (let hour = 0; hour < 24; hour++) {
+          const key = `${day}-${hour}`;
+          const cell = grid.get(key)!;
+          cells.push({
+            dayOfWeek: day,
+            hour,
+            totalSnapshots: cell.total,
+            activeSnapshots: cell.active,
+            activityPercent:
+              cell.total > 0 ? (cell.active / cell.total) * 100 : 0,
+          });
+        }
+      }
+
+      return { cells, totalSnapshots: snapshots.length };
+    } catch (error) {
+      Logger.error("Failed to get node activity heatmap", { pubkey, error });
       throw error;
     }
   }

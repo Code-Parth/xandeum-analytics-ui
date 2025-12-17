@@ -6,3 +6,4 @@ export * from "./useNetworkHistory";
 export * from "./usePodHistory";
 export * from "./useNodeMetrics";
 export * from "./useNodeActivity";
+export * from "./useNodeHeatmap";
