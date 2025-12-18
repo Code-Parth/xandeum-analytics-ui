@@ -922,7 +922,7 @@ export default function NodeDetailPage() {
 
           {/* Activity Heatmap */}
           <ActivityHeatmap
-            data={heatmapData?.cells}
+            data={heatmapData?.addresses}
             isLoading={heatmapLoading}
             error={heatmapError}
             days={heatmapDays}

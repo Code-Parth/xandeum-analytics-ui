@@ -1,12 +1,20 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import type { NodeHeatmapResponse } from "@/types";
+import type { NodeHeatmapResponse, AddressHeatmapData } from "@/types";
 
 interface UseNodeHeatmapOptions {
   pubkey: string | undefined;
   days?: number;
   enabled?: boolean;
+}
+
+interface RawNodeHeatmapResponse {
+  pubkey: string;
+  addresses: AddressHeatmapData[];
+  startTime: string;
+  endTime: string;
+  totalSnapshots: number;
 }
 
 export function useNodeHeatmap(options: UseNodeHeatmapOptions) {
@@ -21,7 +29,7 @@ export function useNodeHeatmap(options: UseNodeHeatmapOptions) {
         throw new Error("Failed to fetch node heatmap");
       }
 
-      const data: NodeHeatmapResponse = await response.json();
+      const data: RawNodeHeatmapResponse = await response.json();
 
       // Convert date strings back to Date objects
       return {

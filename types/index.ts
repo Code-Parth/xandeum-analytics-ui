@@ -85,9 +85,16 @@ export interface HeatmapCell {
   activityPercent: number;
 }
 
+export interface AddressHeatmapData {
+  address: string;
+  cells: HeatmapCell[];
+  totalSnapshots: number;
+  overallActivityPercent: number;
+}
+
 export interface NodeHeatmapResponse {
   pubkey: string;
-  cells: HeatmapCell[];
+  addresses: AddressHeatmapData[];
   startTime: Date;
   endTime: Date;
   totalSnapshots: number;

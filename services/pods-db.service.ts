@@ -10,6 +10,7 @@ import type {
   ActivityPeriod,
   AddressActivitySummary,
   HeatmapCell,
+  AddressHeatmapData,
 } from "@/types";
 import { Logger } from "@/utils/logger";
 
@@ -432,8 +433,8 @@ export class PodsDbService {
   }
 
   /**
-   * Get activity heatmap data for a specific pubkey
-   * Aggregates snapshots by day-of-week and hour-of-day
+   * Get activity heatmap data for a specific pubkey, grouped by address
+   * Aggregates snapshots by day-of-week and hour-of-day for each address
    *
    * @param pubkey - The node's public key
    * @param startTime - Start of the time range
@@ -443,7 +444,7 @@ export class PodsDbService {
     pubkey: string,
     startTime: Date,
     endTime: Date = new Date(),
-  ): Promise<{ cells: HeatmapCell[]; totalSnapshots: number }> {
+  ): Promise<{ addresses: AddressHeatmapData[]; totalSnapshots: number }> {
     try {
       // Get all snapshots for this pubkey in the time range
       const snapshots = await this.getPodHistoryByPubkey(
@@ -453,17 +454,15 @@ export class PodsDbService {
       );
 
       if (snapshots.length === 0) {
-        return { cells: [], totalSnapshots: 0 };
+        return { addresses: [], totalSnapshots: 0 };
       }
 
-      // Initialize the heatmap grid (7 days x 24 hours)
-      const grid = new Map<string, { total: number; active: number }>();
-
-      // Initialize all cells
-      for (let day = 0; day < 7; day++) {
-        for (let hour = 0; hour < 24; hour++) {
-          grid.set(`${day}-${hour}`, { total: 0, active: 0 });
-        }
+      // Group snapshots by address
+      const byAddress = new Map<string, PodSnapshot[]>();
+      for (const snapshot of snapshots) {
+        const existing = byAddress.get(snapshot.address) || [];
+        existing.push(snapshot);
+        byAddress.set(snapshot.address, existing);
       }
 
       // Determine if snapshot was active based on last_seen_timestamp
@@ -475,38 +474,68 @@ export class PodsDbService {
         return timeSinceLastSeen <= 120 * 1000;
       };
 
-      // Aggregate snapshots into the grid
-      for (const snapshot of snapshots) {
-        const snapshotDate = new Date(snapshot.snapshotTimestamp);
-        const dayOfWeek = snapshotDate.getDay(); // 0 = Sunday
-        const hour = snapshotDate.getHours();
-        const key = `${dayOfWeek}-${hour}`;
+      const addressesData: AddressHeatmapData[] = [];
 
-        const cell = grid.get(key)!;
-        cell.total++;
-        if (isActiveSnapshot(snapshot)) {
-          cell.active++;
+      // Process each address separately
+      for (const [address, addressSnapshots] of byAddress) {
+        // Initialize the heatmap grid (7 days x 24 hours) for this address
+        const grid = new Map<string, { total: number; active: number }>();
+
+        // Initialize all cells
+        for (let day = 0; day < 7; day++) {
+          for (let hour = 0; hour < 24; hour++) {
+            grid.set(`${day}-${hour}`, { total: 0, active: 0 });
+          }
         }
-      }
 
-      // Convert to array of HeatmapCell
-      const cells: HeatmapCell[] = [];
-      for (let day = 0; day < 7; day++) {
-        for (let hour = 0; hour < 24; hour++) {
-          const key = `${day}-${hour}`;
+        // Aggregate snapshots into the grid
+        let totalActive = 0;
+        for (const snapshot of addressSnapshots) {
+          const snapshotDate = new Date(snapshot.snapshotTimestamp);
+          const dayOfWeek = snapshotDate.getDay(); // 0 = Sunday
+          const hour = snapshotDate.getHours();
+          const key = `${dayOfWeek}-${hour}`;
+
           const cell = grid.get(key)!;
-          cells.push({
-            dayOfWeek: day,
-            hour,
-            totalSnapshots: cell.total,
-            activeSnapshots: cell.active,
-            activityPercent:
-              cell.total > 0 ? (cell.active / cell.total) * 100 : 0,
-          });
+          cell.total++;
+          if (isActiveSnapshot(snapshot)) {
+            cell.active++;
+            totalActive++;
+          }
         }
+
+        // Convert to array of HeatmapCell
+        const cells: HeatmapCell[] = [];
+        for (let day = 0; day < 7; day++) {
+          for (let hour = 0; hour < 24; hour++) {
+            const key = `${day}-${hour}`;
+            const cell = grid.get(key)!;
+            cells.push({
+              dayOfWeek: day,
+              hour,
+              totalSnapshots: cell.total,
+              activeSnapshots: cell.active,
+              activityPercent:
+                cell.total > 0 ? (cell.active / cell.total) * 100 : 0,
+            });
+          }
+        }
+
+        addressesData.push({
+          address,
+          cells,
+          totalSnapshots: addressSnapshots.length,
+          overallActivityPercent:
+            addressSnapshots.length > 0
+              ? (totalActive / addressSnapshots.length) * 100
+              : 0,
+        });
       }
 
-      return { cells, totalSnapshots: snapshots.length };
+      // Sort addresses by total snapshots (most data first)
+      addressesData.sort((a, b) => b.totalSnapshots - a.totalSnapshots);
+
+      return { addresses: addressesData, totalSnapshots: snapshots.length };
     } catch (error) {
       Logger.error("Failed to get node activity heatmap", { pubkey, error });
       throw error;

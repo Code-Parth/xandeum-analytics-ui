@@ -39,12 +39,12 @@ export async function GET(
       ? new Date(startTimeParam)
       : new Date(endTime.getTime() - days * 24 * 60 * 60 * 1000);
 
-    const { cells, totalSnapshots } =
+    const { addresses, totalSnapshots } =
       await podsDbService.getNodeActivityHeatmap(pubkey, startTime, endTime);
 
     const response: NodeHeatmapResponse = {
       pubkey,
-      cells,
+      addresses,
       startTime,
       endTime,
       totalSnapshots,

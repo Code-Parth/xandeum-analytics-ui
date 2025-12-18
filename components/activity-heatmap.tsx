@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import type { HeatmapCell } from "@/types";
+import { useMemo, useState } from "react";
+import type { AddressHeatmapData, HeatmapCell } from "@/types";
 import {
   Card,
   CardContent,
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { ChartInfoHover } from "@/components/chart-info-hover";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
   TooltipContent,
@@ -19,7 +20,7 @@ import {
 } from "@/components/ui/tooltip";
 
 interface ActivityHeatmapProps {
-  data: HeatmapCell[] | undefined;
+  data: AddressHeatmapData[] | undefined;
   isLoading: boolean;
   error: Error | null;
   days: number;
@@ -42,6 +43,15 @@ function getActivityColor(percent: number, hasData: boolean): string {
   return "var(--destructive)"; // Red - no activity when data exists
 }
 
+function getActivityLevel(percent: number): string {
+  if (percent >= 90) return "Highly Active";
+  if (percent >= 70) return "Active";
+  if (percent >= 50) return "Moderate";
+  if (percent >= 30) return "Low";
+  if (percent > 0) return "Very Low";
+  return "Inactive";
+}
+
 function formatHour(hour: number): string {
   if (hour === 0) return "12 AM";
   if (hour === 12) return "12 PM";
@@ -55,23 +65,95 @@ export function ActivityHeatmap({
   error,
   days,
 }: ActivityHeatmapProps) {
+  const [selectedAddress, setSelectedAddress] = useState<string>("all");
+
+  // Get addresses for dropdown
+  const addresses = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    return data.map((d) => d.address);
+  }, [data]);
+
+  // Get current heatmap data based on selection
+  const currentData = useMemo(() => {
+    if (!data || data.length === 0) return null;
+
+    if (selectedAddress === "all") {
+      // Aggregate all addresses into one view
+      const aggregatedCells: HeatmapCell[] = [];
+      const cellMap = new Map<
+        string,
+        { total: number; active: number; count: number }
+      >();
+
+      // Initialize all cells
+      for (let day = 0; day < 7; day++) {
+        for (let hour = 0; hour < 24; hour++) {
+          cellMap.set(`${day}-${hour}`, { total: 0, active: 0, count: 0 });
+        }
+      }
+
+      // Aggregate from all addresses
+      for (const addressData of data) {
+        for (const cell of addressData.cells) {
+          const key = `${cell.dayOfWeek}-${cell.hour}`;
+          const existing = cellMap.get(key)!;
+          existing.total += cell.totalSnapshots;
+          existing.active += cell.activeSnapshots;
+          existing.count++;
+        }
+      }
+
+      // Convert to HeatmapCell array
+      for (let day = 0; day < 7; day++) {
+        for (let hour = 0; hour < 24; hour++) {
+          const key = `${day}-${hour}`;
+          const cell = cellMap.get(key)!;
+          aggregatedCells.push({
+            dayOfWeek: day,
+            hour,
+            totalSnapshots: cell.total,
+            activeSnapshots: cell.active,
+            activityPercent:
+              cell.total > 0 ? (cell.active / cell.total) * 100 : 0,
+          });
+        }
+      }
+
+      return {
+        address: "all",
+        cells: aggregatedCells,
+        totalSnapshots: data.reduce((sum, d) => sum + d.totalSnapshots, 0),
+        overallActivityPercent:
+          data.length > 0
+            ? data.reduce(
+                (sum, d) => sum + d.overallActivityPercent * d.totalSnapshots,
+                0,
+              ) / data.reduce((sum, d) => sum + d.totalSnapshots, 0)
+            : 0,
+      } satisfies AddressHeatmapData;
+    }
+
+    // Find specific address
+    return data.find((d) => d.address === selectedAddress) || null;
+  }, [data, selectedAddress]);
+
   // Organize data into a grid structure
   const grid = useMemo(() => {
-    if (!data) return null;
+    if (!currentData) return null;
 
     const cellMap = new Map<string, HeatmapCell>();
-    for (const cell of data) {
+    for (const cell of currentData.cells) {
       cellMap.set(`${cell.dayOfWeek}-${cell.hour}`, cell);
     }
 
     return cellMap;
-  }, [data]);
+  }, [currentData]);
 
-  // Calculate overall stats
+  // Calculate stats for the current selection
   const stats = useMemo(() => {
-    if (!data) return null;
+    if (!currentData) return null;
 
-    const cellsWithData = data.filter((c) => c.totalSnapshots > 0);
+    const cellsWithData = currentData.cells.filter((c) => c.totalSnapshots > 0);
     if (cellsWithData.length === 0) return null;
 
     const totalActive = cellsWithData.reduce(
@@ -97,7 +179,7 @@ export function ActivityHeatmap({
       mostActive,
       leastActive,
     };
-  }, [data]);
+  }, [currentData]);
 
   if (isLoading) {
     return (
@@ -189,7 +271,7 @@ export function ActivityHeatmap({
     );
   }
 
-  if (!data || data.length === 0 || !grid) {
+  if (!data || data.length === 0 || !grid || !currentData) {
     return (
       <Card>
         <CardHeader className="flex flex-row items-start justify-between space-y-0">
@@ -201,7 +283,7 @@ export function ActivityHeatmap({
             ariaLabel="Activity heatmap info"
             items={[
               { label: "Data source", value: "Historical snapshots" },
-              { label: "Metrics", value: "Activity by day/hour" },
+              { label: "Metrics", value: "Activity by day/hour per address" },
               { label: "Time range", value: `${days}-day window` },
             ]}
             docsAnchor="activity-heatmap"
@@ -219,32 +301,125 @@ export function ActivityHeatmap({
   return (
     <Card>
       <CardHeader className="flex flex-row items-start justify-between space-y-0">
-        <div>
+        <div className="flex-1">
           <CardTitle>Activity Heatmap</CardTitle>
-          <CardDescription>
+          <CardDescription className="mt-1">
             Activity patterns by day of week and hour
+            {selectedAddress !== "all" && (
+              <span className="text-foreground ml-1 font-medium">
+                for {selectedAddress}
+              </span>
+            )}
           </CardDescription>
-          <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-4 text-xs">
-            <div className="flex items-center gap-1">
-              <span
-                className="inline-block h-3 w-3 rounded"
-                style={{ backgroundColor: "var(--chart-2)" }}
-              />
-              <span>Active</span>
+
+          {/* Address Selection - Per-Address Activity Summary at TOP */}
+          {addresses.length > 0 && (
+            <div className="mt-3 rounded-lg border p-3">
+              <div className="text-muted-foreground mb-2 text-xs font-medium">
+                Select Address to View:
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {/* All Addresses option */}
+                {addresses.length > 1 && (
+                  <button
+                    onClick={() => setSelectedAddress("all")}
+                    className={`flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs transition-colors ${
+                      selectedAddress === "all"
+                        ? "border-primary bg-primary/10 ring-primary/20 ring-2"
+                        : "hover:bg-muted"
+                    }`}>
+                    <span className="font-medium">All Addresses</span>
+                    <Badge variant="outline" className="h-5 text-[10px]">
+                      {addresses.length}
+                    </Badge>
+                  </button>
+                )}
+                {/* Individual address options */}
+                {data?.map((addrData) => (
+                  <button
+                    key={addrData.address}
+                    onClick={() => setSelectedAddress(addrData.address)}
+                    className={`flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs transition-colors ${
+                      selectedAddress === addrData.address
+                        ? "border-primary bg-primary/10 ring-primary/20 ring-2"
+                        : "hover:bg-muted"
+                    }`}>
+                    <span className="font-mono">{addrData.address}</span>
+                    <Badge
+                      variant={
+                        addrData.overallActivityPercent >= 70
+                          ? "default"
+                          : addrData.overallActivityPercent >= 30
+                            ? "secondary"
+                            : "destructive"
+                      }
+                      className="h-5 text-[10px]">
+                      {addrData.overallActivityPercent.toFixed(0)}%
+                    </Badge>
+                    <span className="text-muted-foreground">
+                      ({addrData.totalSnapshots} snapshots)
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="flex items-center gap-1">
-              <span
-                className="inline-block h-3 w-3 rounded"
-                style={{ backgroundColor: "var(--muted)" }}
-              />
-              <span>No data</span>
+          )}
+
+          {/* Activity Levels Legend */}
+          <div className="mt-3 space-y-2">
+            <div className="text-muted-foreground text-xs font-medium">
+              Activity Levels:
             </div>
-            <div className="flex items-center gap-1">
-              <span
-                className="inline-block h-3 w-3 rounded"
-                style={{ backgroundColor: "var(--destructive)" }}
-              />
-              <span>Inactive</span>
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Gradient scale */}
+              <div className="flex items-center gap-1">
+                <div className="flex h-4 overflow-hidden rounded">
+                  <span
+                    className="h-4 w-4"
+                    style={{ backgroundColor: getActivityColor(100, true) }}
+                    title="90-100%"
+                  />
+                  <span
+                    className="h-4 w-4"
+                    style={{ backgroundColor: getActivityColor(75, true) }}
+                    title="70-89%"
+                  />
+                  <span
+                    className="h-4 w-4"
+                    style={{ backgroundColor: getActivityColor(55, true) }}
+                    title="50-69%"
+                  />
+                  <span
+                    className="h-4 w-4"
+                    style={{ backgroundColor: getActivityColor(35, true) }}
+                    title="30-49%"
+                  />
+                  <span
+                    className="h-4 w-4"
+                    style={{ backgroundColor: getActivityColor(15, true) }}
+                    title="1-29%"
+                  />
+                </div>
+                <span className="text-muted-foreground ml-1 text-xs">
+                  Active (100% → 1%)
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span
+                  className="inline-block h-4 w-4 rounded"
+                  style={{ backgroundColor: "var(--destructive)" }}
+                />
+                <span className="text-muted-foreground text-xs">
+                  0% (Inactive)
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span
+                  className="inline-block h-4 w-4 rounded opacity-30"
+                  style={{ backgroundColor: "var(--muted)" }}
+                />
+                <span className="text-muted-foreground text-xs">No data</span>
+              </div>
             </div>
           </div>
         </div>
@@ -252,8 +427,15 @@ export function ActivityHeatmap({
           ariaLabel="Activity heatmap info"
           items={[
             { label: "Data source", value: "Historical snapshots" },
-            { label: "Metrics", value: "Activity % by day/hour bucket" },
+            { label: "Metrics", value: "Activity % by day/hour per address" },
             { label: "Time range", value: `${days}-day window` },
+            {
+              label: "Addresses",
+              value:
+                addresses.length > 1
+                  ? `${addresses.length} addresses (click to select)`
+                  : addresses[0] || "N/A",
+            },
           ]}
           docsAnchor="activity-heatmap"
         />
@@ -311,11 +493,35 @@ export function ActivityHeatmap({
                               </div>
                               {hasData ? (
                                 <>
-                                  <div>Activity: {percent.toFixed(1)}%</div>
-                                  <div>
-                                    Snapshots: {cell?.activeSnapshots ?? 0} /{" "}
+                                  <div className="flex items-center gap-2">
+                                    <span>Activity:</span>
+                                    <span className="font-semibold">
+                                      {percent.toFixed(1)}%
+                                    </span>
+                                    <Badge
+                                      variant={
+                                        percent >= 70
+                                          ? "default"
+                                          : percent >= 30
+                                            ? "secondary"
+                                            : "destructive"
+                                      }
+                                      className="h-5 text-[10px]">
+                                      {getActivityLevel(percent)}
+                                    </Badge>
+                                  </div>
+                                  <div className="text-muted-foreground">
+                                    Active snapshots:{" "}
+                                    {cell?.activeSnapshots ?? 0} /{" "}
                                     {cell?.totalSnapshots ?? 0}
                                   </div>
+                                  {selectedAddress === "all" &&
+                                    addresses.length > 1 && (
+                                      <div className="text-muted-foreground">
+                                        Aggregated across {addresses.length}{" "}
+                                        addresses
+                                      </div>
+                                    )}
                                 </>
                               ) : (
                                 <div className="text-muted-foreground">
@@ -341,14 +547,30 @@ export function ActivityHeatmap({
               <div className="text-muted-foreground text-xs">
                 Overall Activity
               </div>
-              <div className="text-lg font-semibold">
-                {stats.overallPercent.toFixed(1)}%
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-semibold">
+                  {stats.overallPercent.toFixed(1)}%
+                </span>
+                <Badge
+                  variant={
+                    stats.overallPercent >= 70
+                      ? "default"
+                      : stats.overallPercent >= 30
+                        ? "secondary"
+                        : "destructive"
+                  }
+                  className="text-[10px]">
+                  {getActivityLevel(stats.overallPercent)}
+                </Badge>
               </div>
             </div>
             <div className="rounded border px-3 py-2">
               <div className="text-muted-foreground text-xs">Data Coverage</div>
               <div className="text-lg font-semibold">
                 {stats.cellsWithData} / 168 hrs
+              </div>
+              <div className="text-muted-foreground text-xs">
+                {((stats.cellsWithData / 168) * 100).toFixed(0)}% coverage
               </div>
             </div>
             {stats.mostActive && (
@@ -358,8 +580,13 @@ export function ActivityHeatmap({
                   {DAYS_OF_WEEK[stats.mostActive.dayOfWeek]}{" "}
                   {formatHour(stats.mostActive.hour)}
                 </div>
-                <div className="text-muted-foreground text-xs">
-                  {stats.mostActive.activityPercent.toFixed(1)}%
+                <div className="flex items-center gap-1">
+                  <span className="text-muted-foreground text-xs">
+                    {stats.mostActive.activityPercent.toFixed(1)}%
+                  </span>
+                  <Badge variant="default" className="h-4 text-[9px]">
+                    {getActivityLevel(stats.mostActive.activityPercent)}
+                  </Badge>
                 </div>
               </div>
             )}
@@ -372,8 +599,19 @@ export function ActivityHeatmap({
                   {DAYS_OF_WEEK[stats.leastActive.dayOfWeek]}{" "}
                   {formatHour(stats.leastActive.hour)}
                 </div>
-                <div className="text-muted-foreground text-xs">
-                  {stats.leastActive.activityPercent.toFixed(1)}%
+                <div className="flex items-center gap-1">
+                  <span className="text-muted-foreground text-xs">
+                    {stats.leastActive.activityPercent.toFixed(1)}%
+                  </span>
+                  <Badge
+                    variant={
+                      stats.leastActive.activityPercent > 0
+                        ? "secondary"
+                        : "destructive"
+                    }
+                    className="h-4 text-[9px]">
+                    {getActivityLevel(stats.leastActive.activityPercent)}
+                  </Badge>
                 </div>
               </div>
             )}
