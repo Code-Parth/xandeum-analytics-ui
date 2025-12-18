@@ -24,6 +24,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+// Truncate address for display
+function truncateAddress(addr: string) {
+  if (addr.length <= 21) return addr;
+  return `${addr.slice(0, 12)}...${addr.slice(-6)}`;
+}
 
 interface DowntimeReportProps {
   data: AddressActivitySummary[] | undefined;
@@ -351,10 +356,21 @@ export function DowntimeReport({
                         {formatDuration(incident.durationMs)}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">
-                          {incident.addressesAffected.length} of{" "}
-                          {incident.totalAddresses}
-                        </Badge>
+                        <div className="space-y-1">
+                          <Badge variant="outline" className="mb-1">
+                            {incident.addressesAffected.length} of{" "}
+                            {incident.totalAddresses}
+                          </Badge>
+                          <div className="flex flex-wrap gap-1">
+                            {incident.addressesAffected.map((addr) => (
+                              <span
+                                key={addr}
+                                className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 font-mono text-xs">
+                                {truncateAddress(addr)}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

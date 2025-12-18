@@ -361,6 +361,7 @@ export default function NodeDetailPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="1">1 Hour</SelectItem>
               <SelectItem value="6">6 Hours</SelectItem>
               <SelectItem value="24">24 Hours</SelectItem>
               <SelectItem value="72">3 Days</SelectItem>
@@ -505,7 +506,7 @@ export default function NodeDetailPage() {
                 { label: "Data source", value: "Latest nodes snapshot" },
                 {
                   label: "Metrics",
-                  value: "Committed vs used storage per address (GB)",
+                  value: "Committed vs used storage per address",
                 },
                 { label: "Time", value: "Current snapshot" },
               ]}
@@ -923,8 +924,7 @@ export default function NodeDetailPage() {
                             { label: "Data source", value: "Node metrics API" },
                             {
                               label: "Metrics",
-                              value:
-                                "Committed vs used storage per address (GB)",
+                              value: "Committed vs used storage per address",
                             },
                             {
                               label: "Time range",

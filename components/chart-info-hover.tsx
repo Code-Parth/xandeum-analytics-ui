@@ -37,7 +37,7 @@ export function ChartInfoHover({
           <Info className="h-4 w-4" />
         </button>
       </HoverCardTrigger>
-      <HoverCardContent align="start" className="w-72">
+      <HoverCardContent align="end" className="w-72">
         <div className="space-y-2">
           <div className="space-y-1">
             {items.map((item) => (
