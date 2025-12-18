@@ -56,16 +56,16 @@ function truncateKey(key: string | undefined, size = 8) {
   return `${key.slice(0, size)}...${key.slice(-size)}`;
 }
 
-function formatTimestampLabel(value: unknown) {
-  const date = new Date(
-    typeof value === "string" || typeof value === "number"
-      ? value
-      : // Some Recharts internals pass Date instances through
-        (value as Date),
-  );
+const formatTooltipTimestamp = (
+  value: unknown,
+  payload?: { payload?: Record<string, unknown> }[],
+) => {
+  const rawTimestamp =
+    payload?.[0]?.payload?.timestamp ?? payload?.[0]?.payload?.time ?? value;
+  const date = new Date(rawTimestamp as number);
 
   if (Number.isNaN(date.getTime())) {
-    return String(value ?? "");
+    return String(rawTimestamp ?? value ?? "");
   }
 
   return date.toLocaleString([], {
@@ -73,8 +73,9 @@ function formatTimestampLabel(value: unknown) {
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    second: "2-digit",
   });
-}
+};
 
 const storageChartConfig = {
   committed: {
@@ -1034,8 +1035,7 @@ export default function NodeDetailPage() {
                               <ChartTooltip
                                 content={
                                   <ChartTooltipContent
-                                    labelFormatter={formatTimestampLabel}
-                                    formatter={(value) => `${value}s`}
+                                    labelFormatter={formatTooltipTimestamp}
                                   />
                                 }
                               />
@@ -1123,10 +1123,7 @@ export default function NodeDetailPage() {
                               <ChartTooltip
                                 content={
                                   <ChartTooltipContent
-                                    labelFormatter={formatTimestampLabel}
-                                    formatter={(value) =>
-                                      `${Number(value).toFixed(2)} GB`
-                                    }
+                                    labelFormatter={formatTooltipTimestamp}
                                   />
                                 }
                               />
