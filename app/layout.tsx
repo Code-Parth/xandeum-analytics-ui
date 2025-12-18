@@ -2,9 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Provider } from "@/provider";
 import { Analytics } from "@vercel/analytics/next";
-import { Geist, Geist_Mono, Outfit } from "next/font/google";
-
-const outfit = Outfit({ subsets: ["latin"], variable: "--font-sans" });
+import { Geist, Geist_Mono } from "next/font/google";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={outfit.variable}>
+    <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Provider>{children}</Provider>
