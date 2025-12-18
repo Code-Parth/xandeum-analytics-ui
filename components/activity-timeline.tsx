@@ -191,12 +191,56 @@ export function ActivityTimeline({
   if (isLoading) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle>Activity Timeline</CardTitle>
-          <CardDescription>Loading activity history...</CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between space-y-0">
+          <div>
+            <CardTitle>Activity Timeline</CardTitle>
+            <CardDescription>Loading activity history...</CardDescription>
+            {/* Legend skeleton */}
+            <div className="mt-2 flex flex-wrap gap-4">
+              <div className="flex items-center gap-1">
+                <Skeleton className="h-2.5 w-2.5 rounded-full" />
+                <Skeleton className="h-3 w-12" />
+              </div>
+              <div className="flex items-center gap-1">
+                <Skeleton className="h-2.5 w-2.5 rounded-full" />
+                <Skeleton className="h-3 w-14" />
+              </div>
+            </div>
+          </div>
+          <Skeleton className="h-5 w-5 rounded-full" />
         </CardHeader>
         <CardContent>
-          <Skeleton className="h-48 w-full" />
+          {/* Timeline rows skeleton */}
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center gap-3">
+                <Skeleton className="h-4 w-32 shrink-0" />
+                <Skeleton className="h-6 flex-1 rounded" />
+              </div>
+            ))}
+          </div>
+
+          {/* Time axis skeleton */}
+          <div className="mt-2 ml-[140px] flex justify-between">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} className="h-3 w-12" />
+            ))}
+          </div>
+
+          {/* Summary stats skeleton */}
+          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="flex flex-col gap-2 rounded border px-3 py-2">
+                <Skeleton className="h-3 w-28" />
+                <div className="flex flex-wrap items-center gap-3">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-3 w-14" />
+                </div>
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
     );

@@ -200,12 +200,88 @@ export function DowntimeReport({
   if (isLoading) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle>Downtime Report</CardTitle>
-          <CardDescription>Loading downtime analysis...</CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between space-y-0">
+          <div>
+            <CardTitle>Downtime Report</CardTitle>
+            <CardDescription>Loading downtime analysis...</CardDescription>
+          </div>
+          <Skeleton className="h-5 w-5 rounded-full" />
         </CardHeader>
         <CardContent>
-          <Skeleton className="h-48 w-full" />
+          {/* Summary Stats skeleton */}
+          <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {/* Total Incidents */}
+            <div className="rounded border px-3 py-2">
+              <Skeleton className="mb-2 h-3 w-24" />
+              <Skeleton className="h-8 w-8" />
+            </div>
+            {/* Total Downtime */}
+            <div className="rounded border px-3 py-2">
+              <Skeleton className="mb-2 h-3 w-24" />
+              <Skeleton className="h-6 w-16" />
+            </div>
+            {/* Longest Outage */}
+            <div className="rounded border px-3 py-2">
+              <Skeleton className="mb-2 h-3 w-24" />
+              <Skeleton className="mb-1 h-6 w-14" />
+              <Skeleton className="h-3 w-28" />
+            </div>
+            {/* MTTR */}
+            <div className="rounded border px-3 py-2">
+              <Skeleton className="mb-2 h-3 w-10" />
+              <Skeleton className="mb-1 h-6 w-14" />
+              <Skeleton className="h-3 w-32" />
+            </div>
+            {/* Current Streak */}
+            <div className="rounded border px-3 py-2">
+              <Skeleton className="mb-2 h-3 w-24" />
+              <Skeleton className="mb-1 h-5 w-16 rounded-full" />
+              <Skeleton className="h-3 w-12" />
+            </div>
+          </div>
+
+          {/* Incidents Table skeleton */}
+          <div>
+            <Skeleton className="mb-2 h-4 w-40" />
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>
+                      <Skeleton className="h-4 w-10" />
+                    </TableHead>
+                    <TableHead>
+                      <Skeleton className="h-4 w-16" />
+                    </TableHead>
+                    <TableHead>
+                      <Skeleton className="h-4 w-32" />
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <TableRow key={i}>
+                      <TableCell>
+                        <Skeleton className="h-4 w-28" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-4 w-16" />
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-2">
+                          <Skeleton className="h-5 w-14 rounded-full" />
+                          <div className="flex flex-wrap gap-1">
+                            <Skeleton className="h-5 w-28 rounded" />
+                            <Skeleton className="h-5 w-24 rounded" />
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
         </CardContent>
       </Card>
     );

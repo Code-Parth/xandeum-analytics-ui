@@ -102,12 +102,73 @@ export function ActivityHeatmap({
   if (isLoading) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle>Activity Heatmap</CardTitle>
-          <CardDescription>Loading activity patterns...</CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between space-y-0">
+          <div>
+            <CardTitle>Activity Heatmap</CardTitle>
+            <CardDescription>Loading activity patterns...</CardDescription>
+            {/* Legend skeleton */}
+            <div className="mt-2 flex flex-wrap items-center gap-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center gap-1">
+                  <Skeleton className="h-3 w-3 rounded" />
+                  <Skeleton className="h-3 w-12" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <Skeleton className="h-5 w-5 rounded-full" />
         </CardHeader>
         <CardContent>
-          <Skeleton className="h-64 w-full" />
+          {/* Heatmap Grid skeleton */}
+          <div className="overflow-x-auto">
+            <div className="min-w-[500px]">
+              {/* Header row with days */}
+              <div className="mb-1 flex">
+                <div className="w-12 shrink-0" />
+                {DAYS_OF_WEEK.map((day) => (
+                  <div key={day} className="flex flex-1 justify-center">
+                    <Skeleton className="h-3 w-6" />
+                  </div>
+                ))}
+              </div>
+
+              {/* Grid rows */}
+              <div className="space-y-0.5">
+                {HOURS.map((hour) => (
+                  <div key={hour} className="flex items-center gap-0.5">
+                    {/* Hour label */}
+                    <div className="w-12 shrink-0 pr-2 text-right">
+                      {hour % 3 === 0 && (
+                        <Skeleton className="ml-auto h-3 w-10" />
+                      )}
+                    </div>
+                    {/* Day cells */}
+                    {DAYS_OF_WEEK.map((_, dayIndex) => (
+                      <Skeleton
+                        key={`${dayIndex}-${hour}`}
+                        className="h-4 flex-1 rounded-sm"
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Stats summary skeleton */}
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              { label: "w-24", value: "w-16" },
+              { label: "w-24", value: "w-20" },
+              { label: "w-20", value: "w-24" },
+              { label: "w-20", value: "w-24" },
+            ].map((item, i) => (
+              <div key={i} className="rounded border px-3 py-2">
+                <Skeleton className={`mb-1 h-3 ${item.label}`} />
+                <Skeleton className={`h-5 ${item.value}`} />
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
     );
