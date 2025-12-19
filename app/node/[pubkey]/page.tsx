@@ -22,6 +22,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
@@ -354,26 +360,30 @@ export default function NodeDetailPage() {
           </CardContent>
         </Card>
 
-        {/* Addresses Overview Card Skeleton */}
+        {/* Addresses Overview Card Skeleton with Accordion */}
         <Card>
           <CardHeader className="flex flex-row items-start justify-between space-y-0">
             <div>
               <Skeleton className="mb-2 h-6 w-40" />
-              <Skeleton className="h-4 w-52" />
+              <Skeleton className="h-4 w-64" />
             </div>
             <Skeleton className="h-5 w-5 rounded-full" />
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
+            <div className="space-y-2">
               {[1, 2].map((i) => (
-                <div
-                  key={i}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded border px-3 py-2">
-                  <Skeleton className="h-5 w-36" />
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Skeleton className="h-6 w-14 rounded-full" />
-                    <Skeleton className="h-4 w-20" />
-                    <Skeleton className="h-6 w-16 rounded-full" />
+                <div key={i} className="rounded-lg border px-3 py-3">
+                  {/* Accordion trigger skeleton */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex flex-1 flex-wrap items-center justify-between gap-2 pr-2">
+                      <Skeleton className="h-5 w-36" />
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Skeleton className="h-6 w-14 rounded-full" />
+                        <Skeleton className="h-4 w-20" />
+                        <Skeleton className="h-6 w-16 rounded-full" />
+                      </div>
+                    </div>
+                    <Skeleton className="h-4 w-4" />
                   </div>
                 </div>
               ))}
@@ -422,61 +432,6 @@ export default function NodeDetailPage() {
             <Skeleton className="h-48 w-full" />
           </CardContent>
         </Card>
-
-        <Separator />
-
-        {/* Per-Address Charts Skeleton */}
-        {[1, 2].map((addressIndex) => (
-          <div key={addressIndex} className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <Skeleton className="h-7 w-40" />
-              <div className="flex flex-wrap items-center gap-3">
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-6 w-14 rounded-full" />
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-5 w-12" />
-                <Skeleton className="h-4 w-14" />
-                <Skeleton className="h-6 w-16 rounded-full" />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              {/* Latency Chart */}
-              <Card>
-                <CardHeader className="flex flex-row items-start justify-between space-y-0">
-                  <div>
-                    <Skeleton className="mb-2 h-5 w-20" />
-                    <Skeleton className="h-4 w-44" />
-                  </div>
-                  <Skeleton className="h-5 w-5 rounded-full" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-64 w-full" />
-                </CardContent>
-              </Card>
-
-              {/* Storage Chart */}
-              <Card>
-                <CardHeader className="flex flex-row items-start justify-between space-y-0">
-                  <div>
-                    <Skeleton className="mb-2 h-5 w-28" />
-                    <Skeleton className="h-4 w-52" />
-                    <div className="mt-2 flex flex-wrap gap-3">
-                      <Skeleton className="h-4 w-20" />
-                      <Skeleton className="h-4 w-14" />
-                    </div>
-                  </div>
-                  <Skeleton className="h-5 w-5 rounded-full" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-64 w-full" />
-                </CardContent>
-              </Card>
-            </div>
-
-            <Separator />
-          </div>
-        ))}
       </div>
     );
   }
@@ -825,7 +780,7 @@ export default function NodeDetailPage() {
         </Card>
       ) : (
         <>
-          {/* Summary Card - All addresses overview */}
+          {/* Summary Card - All addresses overview with collapsible charts */}
           <Card>
             <CardHeader className="flex flex-row items-start justify-between space-y-0">
               <div>
@@ -837,7 +792,7 @@ export default function NodeDetailPage() {
                       new Set([...latencyAddresses, ...storageAddresses]),
                     ).length
                   }{" "}
-                  address(es)
+                  address(es) — click to expand charts
                 </CardDescription>
               </div>
               <ChartInfoHover
@@ -850,7 +805,7 @@ export default function NodeDetailPage() {
                   },
                   {
                     label: "Metrics",
-                    value: "Version, uptime, status by address",
+                    value: "Version, uptime, status, latency & storage charts",
                   },
                   {
                     label: "Time range",
@@ -861,52 +816,238 @@ export default function NodeDetailPage() {
               />
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
+              <Accordion type="multiple" className="w-full">
                 {Array.from(
                   new Set([...latencyAddresses, ...storageAddresses]),
                 ).map((address) => {
                   const nodeForAddress = nodesForPubkey.find(
                     (n) => `${n.ipAddress}:${n.port}` === address,
                   );
+                  const latencyData = latencyDataByAddress.get(address) || [];
+                  const storageData = storageDataByAddress.get(address) || [];
 
                   return (
-                    <div
-                      key={`summary-${address}`}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded border px-3 py-2">
-                      <span className="font-mono text-sm">{address}</span>
-                      {nodeForAddress ? (
-                        <div className="flex flex-wrap items-center gap-3 text-sm">
-                          <Badge variant="outline">
-                            {nodeForAddress.version}
-                          </Badge>
-                          <span className="text-muted-foreground">
-                            Uptime:{" "}
-                            <span className="text-foreground font-medium">
-                              {nodeForAddress.uptime.toFixed(1)}%
-                            </span>
-                          </span>
-                          <Badge
-                            variant={
-                              nodeForAddress.status === "active"
-                                ? "default"
-                                : nodeForAddress.status === "syncing"
-                                  ? "secondary"
-                                  : "destructive"
-                            }
-                            className="capitalize">
-                            {nodeForAddress.status}
-                          </Badge>
+                    <AccordionItem
+                      key={`accordion-${address}`}
+                      value={address}
+                      className="mb-2 rounded-lg border px-3 last:mb-0">
+                      <AccordionTrigger className="py-3 hover:no-underline">
+                        <div className="flex flex-1 flex-wrap items-center justify-between gap-2 pr-2">
+                          <span className="font-mono text-sm">{address}</span>
+                          {nodeForAddress ? (
+                            <div className="flex flex-wrap items-center gap-3 text-sm">
+                              <Badge variant="outline">
+                                {nodeForAddress.version}
+                              </Badge>
+                              <span className="text-muted-foreground">
+                                Uptime:{" "}
+                                <span className="text-foreground font-medium">
+                                  {nodeForAddress.uptime.toFixed(1)}%
+                                </span>
+                              </span>
+                              <Badge
+                                variant={
+                                  nodeForAddress.status === "active"
+                                    ? "default"
+                                    : nodeForAddress.status === "syncing"
+                                      ? "secondary"
+                                      : "destructive"
+                                }
+                                className="capitalize">
+                                {nodeForAddress.status}
+                              </Badge>
+                            </div>
+                          ) : (
+                            <Badge variant="secondary" className="text-xs">
+                              Historical only
+                            </Badge>
+                          )}
                         </div>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">
-                          Historical only — present in this time window, not in
-                          the latest snapshot
-                        </span>
-                      )}
-                    </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="grid grid-cols-1 gap-4 pt-2 lg:grid-cols-2">
+                          {/* Latency Chart */}
+                          <div className="rounded-lg border p-4">
+                            <div className="mb-3 flex items-start justify-between">
+                              <div>
+                                <h4 className="text-sm font-medium">Latency</h4>
+                                <p className="text-muted-foreground text-xs">
+                                  Time since last seen over time
+                                </p>
+                              </div>
+                              <ChartInfoHover
+                                ariaLabel="Latency chart info"
+                                items={[
+                                  {
+                                    label: "Data source",
+                                    value: "Node metrics API",
+                                  },
+                                  {
+                                    label: "Metrics",
+                                    value: "Latency by address (seconds)",
+                                  },
+                                  {
+                                    label: "Time range",
+                                    value: `${hours}-hour window`,
+                                  },
+                                ]}
+                                docsAnchor="latency-chart-per-address"
+                              />
+                            </div>
+                            {latencyData.length === 0 ? (
+                              <div className="text-muted-foreground py-8 text-center text-sm">
+                                No latency data available.
+                              </div>
+                            ) : (
+                              <ChartContainer
+                                config={latencyChartConfig}
+                                className="h-48">
+                                <LineChart data={latencyData}>
+                                  <ChartTooltip
+                                    content={
+                                      <ChartTooltipContent
+                                        labelFormatter={formatTooltipTimestamp}
+                                      />
+                                    }
+                                  />
+                                  <XAxis
+                                    dataKey="timestamp"
+                                    tickFormatter={(ts) =>
+                                      new Date(ts).toLocaleTimeString([], {
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })
+                                    }
+                                  />
+                                  <YAxis tickFormatter={(v) => `${v}s`} />
+                                  <Legend />
+                                  <Line
+                                    type="monotone"
+                                    dataKey="latency"
+                                    name="Latency (s)"
+                                    stroke="var(--chart-1)"
+                                    strokeWidth={2}
+                                    dot={false}
+                                    activeDot={false}
+                                  />
+                                </LineChart>
+                              </ChartContainer>
+                            )}
+                          </div>
+
+                          {/* Storage Chart */}
+                          <div className="rounded-lg border p-4">
+                            <div className="mb-3 flex items-start justify-between">
+                              <div>
+                                <h4 className="text-sm font-medium">
+                                  Storage Usage
+                                </h4>
+                                <p className="text-muted-foreground text-xs">
+                                  Committed vs used storage over time
+                                </p>
+                                <div className="text-muted-foreground mt-1 flex flex-wrap gap-3 text-xs">
+                                  <span className="inline-flex items-center gap-1">
+                                    <span
+                                      aria-hidden
+                                      className="inline-block h-2 w-2 rounded-full"
+                                      style={{
+                                        backgroundColor: "var(--chart-1)",
+                                      }}
+                                    />
+                                    Committed
+                                  </span>
+                                  <span className="inline-flex items-center gap-1">
+                                    <span
+                                      aria-hidden
+                                      className="inline-block h-2 w-2 rounded-full"
+                                      style={{
+                                        backgroundColor: "var(--chart-2)",
+                                      }}
+                                    />
+                                    Used
+                                  </span>
+                                </div>
+                              </div>
+                              <ChartInfoHover
+                                ariaLabel="Storage chart info"
+                                items={[
+                                  {
+                                    label: "Data source",
+                                    value: "Node metrics API",
+                                  },
+                                  {
+                                    label: "Metrics",
+                                    value:
+                                      "Committed vs used storage per address",
+                                  },
+                                  {
+                                    label: "Time range",
+                                    value: `${hours}-hour window`,
+                                  },
+                                ]}
+                                docsAnchor="storage-usage-chart-per-address"
+                              />
+                            </div>
+                            {storageData.length === 0 ? (
+                              <div className="text-muted-foreground py-8 text-center text-sm">
+                                No storage data available.
+                              </div>
+                            ) : (
+                              <ChartContainer
+                                config={storageChartConfig}
+                                className="h-48">
+                                <LineChart data={storageData}>
+                                  <ChartTooltip
+                                    content={
+                                      <ChartTooltipContent
+                                        labelFormatter={formatTooltipTimestamp}
+                                      />
+                                    }
+                                  />
+                                  <XAxis
+                                    dataKey="timestamp"
+                                    tickFormatter={(ts) =>
+                                      new Date(ts).toLocaleTimeString([], {
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })
+                                    }
+                                  />
+                                  <YAxis
+                                    tickFormatter={(v) =>
+                                      `${(v as number).toFixed(1)} GB`
+                                    }
+                                    allowDecimals
+                                  />
+                                  <Legend />
+                                  <Line
+                                    type="monotone"
+                                    dataKey="committed"
+                                    name="Committed (GB)"
+                                    stroke="var(--chart-1)"
+                                    strokeWidth={2}
+                                    dot={false}
+                                    activeDot={false}
+                                  />
+                                  <Line
+                                    type="monotone"
+                                    dataKey="used"
+                                    name="Used (GB)"
+                                    stroke="var(--chart-2)"
+                                    strokeWidth={2}
+                                    dot={false}
+                                    activeDot={false}
+                                  />
+                                </LineChart>
+                              </ChartContainer>
+                            )}
+                          </div>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
                   );
                 })}
-              </div>
+              </Accordion>
             </CardContent>
           </Card>
 
@@ -935,244 +1076,6 @@ export default function NodeDetailPage() {
             error={activityError}
             hours={hours}
           />
-
-          <Separator />
-
-          {/* Individual address charts */}
-          {Array.from(new Set([...latencyAddresses, ...storageAddresses])).map(
-            (address) => {
-              const latencyData = latencyDataByAddress.get(address) || [];
-              const storageData = storageDataByAddress.get(address) || [];
-              // Find the node data for this address to get version and uptime
-              const nodeForAddress = nodesForPubkey.find(
-                (n) => `${n.ipAddress}:${n.port}` === address,
-              );
-
-              return (
-                <div key={address} className="space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="text-lg font-semibold">{address}</h3>
-                    <div className="flex flex-wrap items-center gap-3 text-sm">
-                      {nodeForAddress ? (
-                        <>
-                          <div className="flex items-center gap-1">
-                            <span className="text-muted-foreground">
-                              Version:
-                            </span>
-                            <Badge variant="outline">
-                              {nodeForAddress.version}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="text-muted-foreground">
-                              Uptime:
-                            </span>
-                            <span className="font-medium">
-                              {nodeForAddress.uptime.toFixed(1)}%
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="text-muted-foreground">
-                              Status:
-                            </span>
-                            <Badge
-                              variant={
-                                nodeForAddress.status === "active"
-                                  ? "default"
-                                  : nodeForAddress.status === "syncing"
-                                    ? "secondary"
-                                    : "destructive"
-                              }
-                              className="capitalize">
-                              {nodeForAddress.status}
-                            </Badge>
-                          </div>
-                        </>
-                      ) : (
-                        <Badge variant="secondary">
-                          Historical (not in current snapshot)
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                    {/* Latency Chart */}
-                    <Card>
-                      <CardHeader className="flex flex-row items-start justify-between space-y-0">
-                        <div>
-                          <CardTitle className="text-base">Latency</CardTitle>
-                          <CardDescription>
-                            Time since last seen over time
-                          </CardDescription>
-                        </div>
-                        <ChartInfoHover
-                          ariaLabel="Latency chart info"
-                          items={[
-                            { label: "Data source", value: "Node metrics API" },
-                            {
-                              label: "Metrics",
-                              value: "Latency by address (seconds)",
-                            },
-                            {
-                              label: "Time range",
-                              value: `${hours}-hour window`,
-                            },
-                          ]}
-                          docsAnchor="latency-chart-per-address"
-                        />
-                      </CardHeader>
-                      <CardContent>
-                        {latencyData.length === 0 ? (
-                          <div className="text-muted-foreground py-8 text-center text-sm">
-                            No latency data available.
-                          </div>
-                        ) : (
-                          <ChartContainer
-                            config={latencyChartConfig}
-                            className="h-64">
-                            <LineChart data={latencyData}>
-                              <ChartTooltip
-                                content={
-                                  <ChartTooltipContent
-                                    labelFormatter={formatTooltipTimestamp}
-                                  />
-                                }
-                              />
-                              <XAxis
-                                dataKey="timestamp"
-                                tickFormatter={(ts) =>
-                                  new Date(ts).toLocaleTimeString([], {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })
-                                }
-                              />
-                              <YAxis tickFormatter={(v) => `${v}s`} />
-                              <Legend />
-                              <Line
-                                type="monotone"
-                                dataKey="latency"
-                                name="Latency (s)"
-                                stroke="var(--chart-1)"
-                                strokeWidth={2}
-                                dot={false}
-                                activeDot={false}
-                              />
-                            </LineChart>
-                          </ChartContainer>
-                        )}
-                      </CardContent>
-                    </Card>
-
-                    {/* Storage Chart */}
-                    <Card>
-                      <CardHeader className="flex flex-row items-start justify-between space-y-0">
-                        <div>
-                          <CardTitle className="text-base">
-                            Storage Usage
-                          </CardTitle>
-                          <CardDescription>
-                            Committed vs used storage over time
-                          </CardDescription>
-                          <div className="text-muted-foreground mt-1 flex flex-wrap gap-3 text-xs">
-                            <span className="inline-flex items-center gap-1">
-                              <span
-                                aria-hidden
-                                className="inline-block h-2.5 w-2.5 rounded-full"
-                                style={{ backgroundColor: "var(--chart-1)" }}
-                              />
-                              Committed
-                            </span>
-                            <span className="inline-flex items-center gap-1">
-                              <span
-                                aria-hidden
-                                className="inline-block h-2.5 w-2.5 rounded-full"
-                                style={{ backgroundColor: "var(--chart-2)" }}
-                              />
-                              Used
-                            </span>
-                          </div>
-                        </div>
-                        <ChartInfoHover
-                          ariaLabel="Storage chart info"
-                          items={[
-                            { label: "Data source", value: "Node metrics API" },
-                            {
-                              label: "Metrics",
-                              value: "Committed vs used storage per address",
-                            },
-                            {
-                              label: "Time range",
-                              value: `${hours}-hour window`,
-                            },
-                          ]}
-                          docsAnchor="storage-usage-chart-per-address"
-                        />
-                      </CardHeader>
-                      <CardContent>
-                        {storageData.length === 0 ? (
-                          <div className="text-muted-foreground py-8 text-center text-sm">
-                            No storage data available.
-                          </div>
-                        ) : (
-                          <ChartContainer
-                            config={storageChartConfig}
-                            className="h-64">
-                            <LineChart data={storageData}>
-                              <ChartTooltip
-                                content={
-                                  <ChartTooltipContent
-                                    labelFormatter={formatTooltipTimestamp}
-                                  />
-                                }
-                              />
-                              <XAxis
-                                dataKey="timestamp"
-                                tickFormatter={(ts) =>
-                                  new Date(ts).toLocaleTimeString([], {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })
-                                }
-                              />
-                              <YAxis
-                                tickFormatter={(v) =>
-                                  `${(v as number).toFixed(1)} GB`
-                                }
-                                allowDecimals
-                              />
-                              <Legend />
-                              <Line
-                                type="monotone"
-                                dataKey="committed"
-                                name="Committed (GB)"
-                                stroke="var(--chart-1)"
-                                strokeWidth={2}
-                                dot={false}
-                                activeDot={false}
-                              />
-                              <Line
-                                type="monotone"
-                                dataKey="used"
-                                name="Used (GB)"
-                                stroke="var(--chart-2)"
-                                strokeWidth={2}
-                                dot={false}
-                                activeDot={false}
-                              />
-                            </LineChart>
-                          </ChartContainer>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  <Separator />
-                </div>
-              );
-            },
-          )}
         </>
       )}
     </div>
