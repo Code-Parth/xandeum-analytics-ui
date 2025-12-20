@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import { useNodes, useNetworkStats, useNetworkHistory } from "@/hooks";
 import {
   Card,
@@ -10,6 +11,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -40,6 +42,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DataTable } from "./data-table";
 import { columns, type NodeGroup } from "./columns";
 import { formatBytes } from "@/lib/utils";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Globe02Icon } from "@hugeicons/core-free-icons";
 
 export default function DashboardPage() {
   const {
@@ -145,7 +149,10 @@ export default function DashboardPage() {
               <Skeleton className="h-5 w-40" />
             </div>
           </div>
-          <Skeleton className="h-9 w-9 rounded" />
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-9 w-28 rounded" />
+            <Skeleton className="h-9 w-9 rounded" />
+          </div>
         </div>
 
         {/* Stat Cards Skeleton */}
@@ -390,7 +397,15 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-        <ThemeToggleButton />
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" size="default">
+            <Link href="/map">
+              <HugeiconsIcon icon={Globe02Icon} strokeWidth={2} />
+              <span className="ml-2">View Map</span>
+            </Link>
+          </Button>
+          <ThemeToggleButton />
+        </div>
       </div>
 
       {/* Stat Cards */}

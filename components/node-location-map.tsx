@@ -154,7 +154,7 @@ export function NodeLocationMap({ pubkey }: NodeLocationMapProps) {
         />
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="overflow-hidden rounded-lg border bg-black">
+        <div className="bg-background overflow-hidden rounded-lg border">
           <Globe3D locations={globeLocations} height="500px" />
         </div>
 

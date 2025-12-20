@@ -197,7 +197,7 @@ export function NodeWorldMap() {
       </CardHeader>
       <CardContent className="space-y-4">
         {/* 3D Globe */}
-        <div className="overflow-hidden rounded-lg border bg-black">
+        <div className="bg-background overflow-hidden rounded-lg border">
           <Globe3D locations={globeLocations} height="600px" />
         </div>
 

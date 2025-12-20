@@ -1,8 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTheme } from "next-themes";
 
 export function Wrapper({ children }: { children: React.ReactNode }) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+
   const [grid, setGrid] = useState({
     x: 0,
     y: 0,
@@ -22,16 +26,37 @@ export function Wrapper({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="relative flex h-screen w-screen flex-col items-center justify-center px-6">
-      <div className="absolute top-5 left-5 aspect-square size-4 bg-white/50" />
-      <div className="absolute top-5 right-5 aspect-square size-4 bg-white/50" />
-      <div className="absolute bottom-5 left-5 aspect-square size-4 bg-white/50" />
-      <div className="absolute right-5 bottom-5 aspect-square size-4 bg-white/50" />
-      <div className="relative z-10 m-6 size-full border border-white/30 bg-[#0B0B0D]">
+      <div
+        className={`absolute top-5 left-5 aspect-square size-4 ${
+          isDark ? "bg-white/50" : "bg-black/50"
+        }`}
+      />
+      <div
+        className={`absolute top-5 right-5 aspect-square size-4 ${
+          isDark ? "bg-white/50" : "bg-black/50"
+        }`}
+      />
+      <div
+        className={`absolute bottom-5 left-5 aspect-square size-4 ${
+          isDark ? "bg-white/50" : "bg-black/50"
+        }`}
+      />
+      <div
+        className={`absolute right-5 bottom-5 aspect-square size-4 ${
+          isDark ? "bg-white/50" : "bg-black/50"
+        }`}
+      />
+      <div
+        className={`relative z-10 m-6 size-full border ${
+          isDark ? "border-white/30 bg-[#0B0B0D]" : "border-black/30 bg-gray-50"
+        }`}>
         <div className="absolute inset-0 flex">
           {Array.from({ length: grid.x }).map((_, index) => (
             <div
               key={`col-${index}`}
-              className="h-full border-r border-white/5"
+              className={`h-full border-r ${
+                isDark ? "border-white/5" : "border-black/5"
+              }`}
               style={{ width: `${100 / grid.x}%` }}
             />
           ))}
@@ -40,7 +65,9 @@ export function Wrapper({ children }: { children: React.ReactNode }) {
           {Array.from({ length: grid.y }).map((_, index) => (
             <div
               key={`row-${index}`}
-              className="w-full border-b border-white/5"
+              className={`w-full border-b ${
+                isDark ? "border-white/5" : "border-black/5"
+              }`}
               style={{ height: `${100 / grid.y}%` }}
             />
           ))}

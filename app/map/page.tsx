@@ -18,10 +18,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { ThemeToggleButton } from "@/components/ui/theme-toggle-button";
 import { formatDistanceToNow, format } from "date-fns";
 import Link from "next/link";
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useTheme } from "next-themes";
 
 interface NodeInfo {
   ip: string;
@@ -56,6 +58,8 @@ function Globe({
   const groupRef = useRef<THREE.Group>(null);
   const [geoData, setGeoData] = useState<GeoJSONWorldData | null>(null);
   const { data: geoLocationData } = useNodesGeolocation();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
 
   useEffect(() => {
     fetch("/world.geojson")
@@ -109,9 +113,9 @@ function Globe({
                 new THREE.Line(
                   lineGeometry,
                   new THREE.LineBasicMaterial({
-                    color: "#ffffff",
+                    color: isDark ? "#ffffff" : "#000000",
                     transparent: true,
-                    opacity: 0.7,
+                    opacity: isDark ? 0.7 : 0.3,
                   }),
                 )
               }
@@ -363,16 +367,20 @@ function Globe({
     <group ref={groupRef}>
       <mesh>
         <sphereGeometry args={[2, 64, 32]} />
-        <meshBasicMaterial color="black" transparent opacity={0.85} />
+        <meshBasicMaterial
+          color={isDark ? "#000000" : "#f5f5f5"}
+          transparent
+          opacity={isDark ? 0.85 : 0.95}
+        />
       </mesh>
 
       <mesh>
         <sphereGeometry args={[2.01, 64, 32]} />
         <meshBasicMaterial
-          color="#ffffff"
+          color={isDark ? "#ffffff" : "#666666"}
           wireframe
           transparent
-          opacity={0.07}
+          opacity={isDark ? 0.07 : 0.15}
         />
       </mesh>
 
@@ -396,6 +404,10 @@ export default function WorldMapPage() {
 
   return (
     <Wrapper>
+      <div className="absolute top-6 right-6 z-50">
+        <ThemeToggleButton />
+      </div>
+
       <Canvas
         camera={{ position: [0, 0, 7], fov: 45 }}
         style={{ width: "100%", height: "100%", background: "transparent" }}>

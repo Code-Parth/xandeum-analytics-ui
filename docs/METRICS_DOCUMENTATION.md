@@ -8,6 +8,7 @@ This document provides comprehensive information about all charts, metrics, and 
 - [Core Calculations](#core-calculations)
 - [Dashboard Metrics](#dashboard-metrics)
 - [Node Detail Page Metrics](#node-detail-page-metrics)
+- [3D Globe Visualization](#3d-globe-visualization)
 - [Geographic Distribution](#geographic-distribution)
 - [Data Flow Architecture](#data-flow-architecture)
 
@@ -373,6 +374,171 @@ For each (day_of_week, hour) bucket:
 
 ---
 
+## 3D Globe Visualization
+
+The platform features an interactive 3D globe powered by Three.js to visualize the geographic distribution of network nodes in real-time.
+
+### Technology Stack
+
+**Core Libraries**:
+
+- **Three.js**: WebGL-based 3D graphics library for rendering the globe
+- **React Three Fiber**: React renderer for Three.js declarative 3D scenes
+- **React Three Drei**: Helper components (OrbitControls, etc.)
+- **next-themes**: Theme detection for dark/light mode adaptation
+
+### Coordinate System
+
+**Geographic to 3D Conversion**:
+
+```javascript
+// Convert lat/lng to spherical coordinates on a 3D globe
+const phi = (90 - lat) * (Math.PI / 180);
+const theta = (lon + 180) * (Math.PI / 180);
+const radius = 2; // Globe radius
+
+const x = -radius * Math.sin(phi) * Math.cos(theta);
+const y = radius * Math.cos(phi);
+const z = radius * Math.sin(phi) * Math.sin(theta);
+```
+
+### Visual Components
+
+**1. Globe Sphere**:
+
+- Base radius: 2.0 units
+- Theme-aware colors:
+  - Dark mode: #000000 (opacity 0.9)
+  - Light mode: #f5f5f5 (opacity 0.95)
+- Country border lines overlaid from GeoJSON data
+- Wireframe overlay for visual depth
+
+**2. Node Markers**:
+
+- Sphere geometry with 0.012 radius (8 segments)
+- Positioned at radius 2.03 (slightly above surface)
+
+**3. Connection Lines**:
+
+- QuadraticBezierCurve3 for smooth arcs
+- Arc height formula: `max(2.5, 2 + distance * 0.6)`
+- Always curve above globe surface
+- Green color (#22c55e) with 0.8 opacity
+- Width: 1 pixel
+
+### Interaction Features
+
+**Camera & Controls**:
+
+```
+Initial position: [0, 0, 5]
+Field of view: 45 degrees
+Zoom limits: 3 (min) to 10 (max)
+Auto-rotation: 0.5 speed
+Pan: Disabled
+Zoom: Enabled (scroll)
+Rotate: Enabled (drag)
+```
+
+**Mouse Events**:
+
+- **onPointerOver**: Show tooltip, change cursor to pointer
+- **onPointerMove**: Update tooltip position
+- **onPointerOut**: Hide tooltip, restore cursor
+- **onClick**: Open detail sheet with node information
+
+**Tooltip Data**:
+
+- IP address (monospace font)
+- City and country (if available)
+- Node count at that location
+
+**Detail Sheet** (Global Map):
+
+- IP address card with location details
+- Statistics: ISP, organization, region
+- Timeline: First seen and last seen
+- List of all nodes at that location (clickable links to node pages)
+
+### Connection Algorithm
+
+The globe uses a 3-step algorithm to ensure all nodes have visual connections:
+
+**Step 1: Pubkey-based connections**
+
+```
+For each unique pubkey:
+  locations = all IPs where this node operated
+  if locations.length >= 2:
+    connect all location pairs for this pubkey
+```
+
+**Step 2: Country fallback**
+
+```
+For each isolated node (no connections yet):
+  find other nodes in same country
+  connect to first available node in country
+```
+
+**Step 3: Nearest neighbor**
+
+```
+For remaining isolated nodes:
+  calculate distances to all other nodes
+  connect to geographically nearest node
+```
+
+### Theme Adaptation
+
+The globe automatically adapts to the user's selected theme:
+
+**Dark Mode**:
+
+- Globe surface: Black (#000000)
+- Country borders: White with 0.5 opacity
+- Wireframe: White with 0.05 opacity
+- Background: Dark theme colors
+
+**Light Mode**:
+
+- Globe surface: Light gray (#f5f5f5)
+- Country borders: Black with 0.25 opacity
+- Wireframe: Dark gray (#666666) with 0.1 opacity
+- Background: Light theme colors
+
+### Performance Optimizations
+
+- **GeoJSON caching**: World map data loaded once on mount
+- **Fixed geometry**: Node markers use consistent sphere geometry
+- **No animations on lines**: Static arc paths for better performance
+- **Limited connections**: Smart algorithm prevents excessive line rendering
+- **React memoization**: useMemo for location transformations
+
+### Routes & Components
+
+**Full-screen Map**: `/map`
+
+- Global view of all network nodes
+- Clickable nodes with detail sheets
+- Theme toggle button in top-right
+- Status legend for node activity states
+
+**Dashboard**: Home page
+
+- "View Map" button with globe icon
+- Quick access to full map experience
+
+**Node Detail Pages**: `/node/[pubkey]`
+
+- Individual node location history
+- All places where specific node operated
+- Connection lines between historical locations
+
+**Code Reference**: `components/globe-3d.tsx`, `app/map/page.tsx`
+
+---
+
 ## Geographic Distribution
 
 The platform tracks and visualizes the geographic distribution of network nodes using IP geolocation data.
@@ -403,31 +569,58 @@ For each unique IP address:
 
 **Visual elements**:
 
-- **Connection Lines**: Display connections between major node locations (max 20 connections)
-- **Location Markers**: Show geographic coordinates with node count labels
-- **Country Badges**: List top 10 countries with node and IP counts
+- **3D Globe Visualization**: Interactive WebGL-rendered globe using Three.js
+- **Connection Lines**: Arc paths connecting locations where same node (pubkey) operated
+- **Location Markers**: Small green spheres with pulsing animations on globe surface
+- **Hover Tooltips**: Display IP, location, and node count on marker hover
+- **Clickable Nodes**: Open detail sheets with full location information
+- **Country Badges**: List all countries with node and IP counts
+- **Status Indicators**: Color-coded activity status (green: < 5 min, yellow: < 1 hour, red: > 1 hour)
+- **Theme Support**: Adapts globe colors for light/dark modes
 
-**Connection algorithm**:
+**Connection algorithm** (3D Globe):
 
 ```
-1. Sort locations by node count (descending)
-2. For each location (max 20 connections):
-   - Find locations in different countries
-   - Create connection between them
-   - Skip if locations have same coordinates
-   - Avoid duplicate pairs
-3. Display as curved lines on world map
+1. Step 1 - Pubkey-based connections:
+   - Group locations by pubkey (same node)
+   - Connect all locations where same node operated
+   - Creates arc paths above globe surface
+
+2. Step 2 - Country fallback:
+   - For isolated nodes (no pubkey connections)
+   - Connect nodes within same country
+   - Ensures visual connectivity
+
+3. Step 3 - Nearest neighbor fallback:
+   - For remaining isolated nodes
+   - Connect to geographically nearest node
+   - Guarantees all nodes have connections
+
+Arc rendering:
+- QuadraticBezierCurve3 for smooth paths
+- Arc height: max(2.5, 2 + distance * 0.6)
+- Lines always curve above globe surface
+- Opacity: 0.8 with green (#22c55e) color
 ```
 
-**Code Reference**: `components/node-world-map.tsx`, `components/ui/world-map.tsx`
+**Interactive Features**:
+
+- **Auto-rotation**: Globe rotates automatically (0.5 speed)
+- **Orbit Controls**: Manual pan, zoom (scroll), and rotate (drag)
+- **Zoom limits**: Min distance 3, max distance 10
+- **Node markers**: Fixed size (0.012 radius), don't scale with zoom
+
+**Code Reference**: `components/globe-3d.tsx`, `components/node-world-map.tsx`, `app/map/page.tsx`
 
 ---
 
 ### Node Location Map (Individual Node)
 
-**What it shows**: Geographic locations where a specific node has operated over time.
+**What it shows**: Geographic locations where a specific node has operated over time, displayed on an interactive 3D globe.
 
 **Location**: Individual node detail page
+
+**Visualization Type**: 3D Globe (Three.js with React Three Fiber)
 
 **Data per location**:
 
@@ -469,7 +662,19 @@ Then:
 - Timestamps show the full time range the node was active from that IP
 - Snapshot count represents total observations across all ports
 
-**Code Reference**: `components/node-location-map.tsx`
+**3D Globe Features** (Individual Node):
+
+- **Visual Representation**: Each location shown as a marker on the 3D globe
+- **Connection Lines**: Arc paths connecting all locations where this node operated
+- **Location Details**: Card-based list below globe showing:
+  - IP address with "Current" badge for most recent location
+  - Country code and city badges
+  - ISP information
+  - First seen and last seen timestamps
+  - Total snapshots from that location
+- **Sorting**: Locations sorted by last seen timestamp (most recent first)
+
+**Code Reference**: `components/node-location-map.tsx`, `components/globe-3d.tsx`
 
 ---
 

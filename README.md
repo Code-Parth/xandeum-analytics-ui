@@ -45,12 +45,21 @@ Xandeum is building a scalable storage layer for Solana dApps. This analytics pl
   - Downtime Report (incident history and MTTR analysis)
   - Geographic Location Map (node location visualization with historical tracking)
 
+- **3D Globe Visualization**
+  - Interactive 3D globe map showing global node distribution
+  - Real-time node location tracking with geographic coordinates
+  - Visual connections between node locations (same node at different locations)
+  - Hover tooltips with IP, location, and node count
+  - Clickable nodes with detailed information sheets
+  - Full-screen map view at `/map` route
+
 - **UI/UX**
   - Dark/light theme support
   - Responsive design
   - Real-time data updates
   - Interactive charts and visualizations
   - Loading states and error handling
+  - Globe button on home page for quick map access
 
 ## Tech Stack
 
@@ -62,6 +71,10 @@ Xandeum is building a scalable storage layer for Solana dApps. This analytics pl
 - **Tailwind CSS 4** - Styling
 - **shadcn/ui** - UI component library
 - **Recharts** - Charting library
+- **Three.js** - 3D graphics library
+- **React Three Fiber** - React renderer for Three.js
+- **React Three Drei** - Useful helpers for React Three Fiber
+- **next-themes** - Theme management with dark/light mode
 - **TanStack Query** - Data fetching and caching
 - **TanStack Table** - Data table with sorting/filtering
 
@@ -119,7 +132,16 @@ User Interface
    - Rate limiting and batch processing
    - Geographic data caching and aggregation
 
-5. **React Hooks** (`hooks/`)
+5. **3D Globe Components** (`components/`)
+   - `Globe3D` - Interactive 3D globe with Three.js
+   - `NodeWorldMap` - Global node distribution visualization
+   - `NodeLocationMap` - Individual node location history
+   - Sphere coordinate conversion (lat/lng to 3D)
+   - Arc connections between locations using Bezier curves
+   - Hover tooltips and clickable node markers
+   - Theme-aware rendering
+
+6. **React Hooks** (`hooks/`)
    - `useNodes` - Fetch all nodes
    - `useNodeMetrics` - Fetch node-specific metrics
    - `useNodeActivity` - Fetch node activity periods
@@ -317,16 +339,17 @@ curl -X POST http://localhost:3000/api/cleanup \
   -H "Authorization: Bearer YOUR_CRON_SECRET"
 ```
 
-## Geolocation & World Map
+## Geolocation & 3D Globe Visualization
 
-The platform includes automatic IP geolocation tracking to visualize the global distribution of network nodes.
+The platform includes automatic IP geolocation tracking and an interactive 3D globe to visualize the global distribution of network nodes.
 
 ### How It Works
 
 1. **Automatic IP Detection**: When new node snapshots are created, the system extracts unique IP addresses from node addresses
 2. **Geolocation Lookup**: New IPs are automatically queried using the [ip-api.com](http://ip-api.com) free API
 3. **Data Storage**: Geographic coordinates, ISP info, and location details are cached in the `ip_geolocation` table
-4. **World Map Visualization**: The dashboard displays an interactive world map showing node distribution across countries
+4. **3D Globe Visualization**: The dashboard displays an interactive 3D globe showing node distribution with real-time rendering
+5. **Visual Connections**: Arc lines connect locations where the same node (pubkey) has been observed at different IPs
 
 ### Rate Limiting
 
@@ -339,11 +362,18 @@ The IP API integration respects the following limits:
 
 ### Features
 
-- **Global Node Distribution**: Interactive world map showing all node locations
+- **Interactive 3D Globe**: Real-time rotating globe with WebGL rendering using Three.js
+- **Global Node Distribution**: Full-screen map view at `/map` showing all network nodes
+- **Visual Connections**: Arc paths connecting locations where the same node has operated
 - **Country Statistics**: Node counts grouped by country with ISO codes
 - **Historical Tracking**: First seen and last seen timestamps for each location
 - **Node-Specific Maps**: Individual node detail pages show all geographic locations where that node has operated
 - **Smart Aggregation**: Multiple addresses from the same IP are intelligently grouped
+- **Interactive Elements**:
+  - Hover tooltips showing IP, location, and node count
+  - Clickable nodes opening detail sheets with full information
+  - Auto-rotating globe with manual orbit controls (pan, zoom, rotate)
+- **Theme Support**: Automatically adapts colors and styling for light and dark modes
 
 ### Privacy & Data Source
 
@@ -447,18 +477,23 @@ xandeum-analytics-ui/
 │   │   ├── pods/         # Pod data endpoints
 │   │   ├── rpc/          # RPC proxy
 │   │   └── snapshot/     # Snapshot creation
+│   ├── map/              # Full-screen 3D globe page
+│   │   └── page.tsx      # Interactive globe with node locations
 │   ├── node/[pubkey]/    # Node detail pages
 │   ├── page.tsx          # Dashboard home
 │   ├── layout.tsx        # Root layout
 │   └── globals.css       # Global styles
 ├── components/
 │   ├── ui/               # shadcn/ui components
-│   │   └── world-map.tsx # World map visualization component
+│   │   ├── world-map.tsx # 2D world map visualization component
+│   │   └── theme-toggle-button.tsx # Theme switcher
+│   ├── globe-3d.tsx      # 3D globe component (Three.js)
+│   ├── node-world-map.tsx # Global nodes 3D globe map
+│   ├── node-location-map.tsx # Individual node 3D location map
 │   ├── activity-timeline.tsx
 │   ├── activity-heatmap.tsx
 │   ├── downtime-report.tsx
-│   ├── node-world-map.tsx # Global nodes world map
-│   ├── node-location-map.tsx # Individual node location map
+│   ├── wrapper.tsx       # Theme-aware layout wrapper
 │   └── chart-info-hover.tsx
 ├── config/
 │   └── endpoints.ts      # Xandeum RPC endpoints
@@ -525,14 +560,18 @@ This project is licensed under the MIT License.
 
 ### Project Links
 
-- **Live Analytics Dashboard**: [xandeum-analytics.vercel.app](https://xandeum-analytics.vercel.app) (if deployed)
+- **Live Analytics Dashboard**: [xandeum-analytics-ui.vercel.app](https://xandeum-analytics-ui.vercel.app)
 - **Cron Bot Repository**: [xandeum-analytics-cron-bot](https://github.com/Code-Parth/xandeum-analytics-cron-bot)
 - **Issue Tracker**: [GitHub Issues](https://github.com/Code-Parth/xandeum-analytics-ui/issues)
 
 ### Technology Documentation
 
-- **Next.js 15**: [nextjs.org/docs](https://nextjs.org/docs)
+- **Next.js 16**: [nextjs.org/docs](https://nextjs.org/docs)
 - **React 19**: [react.dev](https://react.dev)
+- **Three.js**: [threejs.org/docs](https://threejs.org/docs)
+- **React Three Fiber**: [docs.pmnd.rs/react-three-fiber](https://docs.pmnd.rs/react-three-fiber)
+- **React Three Drei**: [github.com/pmndrs/drei](https://github.com/pmndrs/drei)
+- **next-themes**: [github.com/pacocoursey/next-themes](https://github.com/pacocoursey/next-themes)
 - **Drizzle ORM**: [orm.drizzle.team](https://orm.drizzle.team)
 - **TanStack Query**: [tanstack.com/query](https://tanstack.com/query)
 - **shadcn/ui**: [ui.shadcn.com](https://ui.shadcn.com)

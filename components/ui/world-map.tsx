@@ -23,7 +23,6 @@ export default function WorldMap({
   dots = [],
   locations = [],
   lineColor = "#0ea5e9",
-  showCount = false,
 }: MapProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const map = new DottedMap({ height: 100, grid: "diagonal" });

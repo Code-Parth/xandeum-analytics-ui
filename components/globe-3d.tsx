@@ -5,6 +5,7 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { GeoJSONWorldData } from "@/types/geoJson";
 import { useEffect, useRef, useState } from "react";
+import { useTheme } from "next-themes";
 
 interface GlobeProps {
   locations?: Array<{
@@ -38,6 +39,8 @@ function GlobeScene({
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const [geoData, setGeoData] = useState<GeoJSONWorldData | null>(null);
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
 
   useEffect(() => {
     fetch("/world.geojson")
@@ -91,9 +94,9 @@ function GlobeScene({
                 new THREE.Line(
                   lineGeometry,
                   new THREE.LineBasicMaterial({
-                    color: "#ffffff",
+                    color: isDark ? "#ffffff" : "#000000",
                     transparent: true,
-                    opacity: 0.5,
+                    opacity: isDark ? 0.5 : 0.25,
                   }),
                 )
               }
@@ -333,17 +336,21 @@ function GlobeScene({
       {/* Main globe sphere */}
       <mesh>
         <sphereGeometry args={[2, 64, 32]} />
-        <meshBasicMaterial color="black" transparent opacity={0.9} />
+        <meshBasicMaterial
+          color={isDark ? "#000000" : "#f5f5f5"}
+          transparent
+          opacity={isDark ? 0.9 : 0.95}
+        />
       </mesh>
 
       {/* Wireframe overlay */}
       <mesh>
         <sphereGeometry args={[2.005, 64, 32]} />
         <meshBasicMaterial
-          color="#ffffff"
+          color={isDark ? "#ffffff" : "#666666"}
           wireframe
           transparent
-          opacity={0.05}
+          opacity={isDark ? 0.05 : 0.1}
         />
       </mesh>
 
