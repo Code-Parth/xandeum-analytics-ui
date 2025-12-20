@@ -114,7 +114,7 @@ export function NodeLocationMap({ pubkey }: NodeLocationMapProps) {
               { label: "Data source", value: "IP Geolocation" },
               { label: "Status", value: "No location data" },
             ]}
-            docsAnchor="node-location"
+            docsAnchor="node-location-map-individual-node"
           />
         </CardHeader>
         <CardContent>
@@ -150,7 +150,7 @@ export function NodeLocationMap({ pubkey }: NodeLocationMapProps) {
             },
             { label: "Total snapshots", value: String(totalSnapshots) },
           ]}
-          docsAnchor="node-location"
+          docsAnchor="node-location-map-individual-node"
         />
       </CardHeader>
       <CardContent className="space-y-3">
