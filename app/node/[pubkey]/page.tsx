@@ -501,6 +501,7 @@ export default function NodeDetailPage() {
                 <SelectItem value="24">24 Hours</SelectItem>
                 <SelectItem value="72">3 Days</SelectItem>
                 <SelectItem value="168">7 Days</SelectItem>
+                <SelectItem value="720">30 Days</SelectItem>
               </SelectContent>
             </Select>
             <Button asChild variant="outline">

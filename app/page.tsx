@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useNodes, useNetworkStats, useNetworkHistory } from "@/hooks";
 import {
   Card,
@@ -141,18 +142,23 @@ export default function DashboardPage() {
       <div className="container mx-auto space-y-6 p-6">
         {/* Header Skeleton */}
         <div className="flex w-full flex-row items-center justify-between">
-          <div className="flex-1">
-            <Skeleton className="mb-2 h-9 w-80" />
-            <Skeleton className="mb-3 h-5 w-64" />
-            <div className="mt-3 flex gap-6">
-              <Skeleton className="h-5 w-32" />
-              <Skeleton className="h-5 w-40" />
+          <div className="flex flex-1 items-center gap-4">
+            <Skeleton className="h-12 w-12 rounded" />
+            <div className="flex-1">
+              <Skeleton className="mb-2 h-9 w-80" />
+              <Skeleton className="h-5 w-64" />
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Skeleton className="h-9 w-28 rounded" />
             <Skeleton className="h-9 w-9 rounded" />
           </div>
+        </div>
+
+        {/* Stats Skeleton */}
+        <div className="flex gap-6">
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-5 w-40" />
         </div>
 
         {/* Stat Cards Skeleton */}
@@ -377,24 +383,19 @@ export default function DashboardPage() {
     <div className="container mx-auto space-y-6 p-6">
       {/* Header */}
       <div className="flex w-full flex-row items-center justify-between">
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold">Xandeum Network Analytics</h1>
-          <p className="text-muted-foreground">
-            Real-time monitoring of the Xandeum network
-          </p>
-          <div className="mt-3 flex gap-6">
-            <div>
-              <span className="text-muted-foreground text-sm">
-                Total Nodes:{" "}
-              </span>
-              <span className="font-semibold">{stats.totalNodes}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground text-sm">
-                Total Public Keys:{" "}
-              </span>
-              <span className="font-semibold">{totalPublicKeys}</span>
-            </div>
+        <div className="flex flex-1 items-center gap-4">
+          <Image
+            src="/logo.png"
+            alt="Xandeum Logo"
+            width={96}
+            height={96}
+            className="h-20 w-20"
+          />
+          <div>
+            <h1 className="text-3xl font-bold">Xandeum Network Analytics</h1>
+            <p className="text-muted-foreground">
+              Real-time monitoring of the Xandeum network
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -405,6 +406,20 @@ export default function DashboardPage() {
             </Link>
           </Button>
           <ThemeToggleButton />
+        </div>
+      </div>
+
+      {/* Stats Info */}
+      <div className="flex gap-6">
+        <div>
+          <span className="text-muted-foreground text-sm">Total Nodes: </span>
+          <span className="font-semibold">{stats.totalNodes}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground text-sm">
+            Total Public Keys:{" "}
+          </span>
+          <span className="font-semibold">{totalPublicKeys}</span>
         </div>
       </div>
 
