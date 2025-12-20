@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { RpcClient } from "@/services/rpc-client.service";
 import { podsDbService } from "@/services/pods-db.service";
+import { ipGeolocationService } from "@/services/ip-geolocation.service";
 import { GetPodsWithStatsResultSchema } from "@/schemas/pod.schema";
 import { Logger } from "@/utils/logger";
 
@@ -68,14 +69,41 @@ export async function POST(request: NextRequest) {
 
     const { pods, total_count } = validationResult.data;
 
-    // Store snapshot in database
+    // Store snapshot in database first (critical path)
     const storedCount = await podsDbService.storePodSnapshot(pods);
+
+    // Process geolocation for new IPs (non-blocking, don't fail snapshot if this fails)
+    let geoResult = {
+      newIpsCount: 0,
+      storedCount: 0,
+      batchesProcessed: 0,
+    };
+
+    try {
+      const podAddresses = pods.map((pod) => pod.address);
+      geoResult = await ipGeolocationService.processNewIps(podAddresses);
+
+      if (geoResult.storedCount > 0) {
+        Logger.info("Stored new IP geolocation data", {
+          newIps: geoResult.newIpsCount,
+          stored: geoResult.storedCount,
+          batchesProcessed: geoResult.batchesProcessed,
+        });
+      }
+    } catch (geoError) {
+      // Log but don't fail the snapshot if geolocation processing fails
+      Logger.error("Geolocation processing failed (non-critical)", {
+        error: geoError,
+      });
+    }
 
     const duration = Date.now() - startTime;
 
     Logger.info("Snapshot completed successfully", {
       podCount: storedCount,
       totalCount: total_count,
+      newGeolocations: geoResult.storedCount,
+      geoBatches: geoResult.batchesProcessed,
       duration,
     });
 
@@ -83,6 +111,11 @@ export async function POST(request: NextRequest) {
       success: true,
       stored: storedCount,
       totalCount: total_count,
+      geolocation: {
+        newIps: geoResult.newIpsCount,
+        stored: geoResult.storedCount,
+        batchesProcessed: geoResult.batchesProcessed,
+      },
       timestamp: new Date().toISOString(),
       duration,
     });

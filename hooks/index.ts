@@ -7,3 +7,5 @@ export * from "./usePodHistory";
 export * from "./useNodeMetrics";
 export * from "./useNodeActivity";
 export * from "./useNodeHeatmap";
+export * from "./useNodesGeolocation";
+export * from "./useNodeGeolocation";

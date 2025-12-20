@@ -51,3 +51,35 @@ export const podsSnapshot = pgTable(
 // Type inference
 export type PodSnapshot = typeof podsSnapshot.$inferSelect;
 export type NewPodSnapshot = typeof podsSnapshot.$inferInsert;
+
+// IP Geolocation table - stores geolocation data for unique IP addresses
+export const ipGeolocation = pgTable(
+  "ip_geolocation",
+  {
+    id: serial("id").primaryKey(),
+    ip: varchar("ip", { length: 45 }).notNull().unique(), // IPv4/IPv6
+    status: varchar("status", { length: 20 }).notNull(), // "success" or "fail"
+    country: varchar("country", { length: 100 }),
+    countryCode: varchar("country_code", { length: 10 }),
+    region: varchar("region", { length: 20 }),
+    regionName: varchar("region_name", { length: 100 }),
+    city: varchar("city", { length: 100 }),
+    zip: varchar("zip", { length: 20 }),
+    lat: real("lat"),
+    lon: real("lon"),
+    timezone: varchar("timezone", { length: 100 }),
+    isp: varchar("isp", { length: 256 }),
+    org: varchar("org", { length: 256 }),
+    asInfo: varchar("as_info", { length: 256 }), // "as" is reserved keyword
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    index("ip_geolocation_ip_idx").on(table.ip),
+    index("ip_geolocation_country_code_idx").on(table.countryCode),
+  ],
+);
+
+// Type inference for IP Geolocation
+export type IpGeolocation = typeof ipGeolocation.$inferSelect;
+export type NewIpGeolocation = typeof ipGeolocation.$inferInsert;

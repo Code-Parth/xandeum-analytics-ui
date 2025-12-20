@@ -12,6 +12,7 @@ import {
 import { ActivityTimeline } from "@/components/activity-timeline";
 import { ActivityHeatmap } from "@/components/activity-heatmap";
 import { DowntimeReport } from "@/components/downtime-report";
+import { NodeLocationMap } from "@/components/node-location-map";
 import {
   Card,
   CardContent,
@@ -622,6 +623,9 @@ export default function NodeDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Node Location Map */}
+      <NodeLocationMap pubkey={pubkey} />
 
       {nodesForPubkey.some((n) => n.performance) && (
         <Card>

@@ -20,6 +20,7 @@ Xandeum is building a scalable storage layer for Solana dApps. This analytics pl
   - Real-time status distribution (active, inactive, syncing)
   - Storage usage visualization (used vs available)
   - Average uptime statistics
+  - Global node geographic distribution with world map visualization
 
 - **Historical Trends**
   - Network activity over time (1 hour to 30 days)
@@ -42,6 +43,7 @@ Xandeum is building a scalable storage layer for Solana dApps. This analytics pl
   - Activity Timeline (active/inactive periods visualization)
   - Activity Heatmap (7x24 grid showing activity patterns)
   - Downtime Report (incident history and MTTR analysis)
+  - Geographic Location Map (node location visualization with historical tracking)
 
 - **UI/UX**
   - Dark/light theme support
@@ -111,13 +113,21 @@ User Interface
    - Calculates network statistics
    - Status determination logic
 
-4. **React Hooks** (`hooks/`)
+4. **IP Geolocation Service** (`services/ip-geolocation.service.ts`)
+   - Automatic IP extraction from node addresses
+   - IP geolocation lookup via ip-api.com
+   - Rate limiting and batch processing
+   - Geographic data caching and aggregation
+
+5. **React Hooks** (`hooks/`)
    - `useNodes` - Fetch all nodes
    - `useNodeMetrics` - Fetch node-specific metrics
    - `useNodeActivity` - Fetch node activity periods
    - `useNodeHeatmap` - Fetch node activity heatmap
    - `useNetworkStats` - Network-wide statistics
    - `useNetworkHistory` - Historical trends
+   - `useNodesGeolocation` - Fetch all nodes geolocation data
+   - `useNodeGeolocation` - Fetch specific node geolocation data
 
 ## Getting Started
 
@@ -199,7 +209,9 @@ RPC_TIMEOUT_MS=10000
 
 ### Schema
 
-The database stores pod snapshots with the following key fields:
+The database consists of two main tables:
+
+#### `pods_snapshot` - Historical node state snapshots
 
 - `address` - Node address (IP:port)
 - `pubkey` - Public key identifier
@@ -210,6 +222,18 @@ The database stores pod snapshots with the following key fields:
 - `storageUsed` - Used storage
 - `storageUsagePercent` - Storage usage percentage
 - `snapshotTimestamp` - When the snapshot was taken
+
+#### `ip_geolocation` - Geographic location data for node IPs
+
+- `ip` - IP address (IPv4/IPv6)
+- `status` - Success or fail status from IP API
+- `country` / `countryCode` - Country information
+- `region` / `regionName` - Regional information
+- `city` - City name
+- `lat` / `lon` - Geographic coordinates
+- `timezone` - Timezone information
+- `isp` / `org` - ISP and organization details
+- `asInfo` - Autonomous System information
 
 ### Database Commands
 
@@ -237,6 +261,8 @@ bun run db:studio
 - `GET /api/nodes/[pubkey]/metrics` - Get node metrics history
 - `GET /api/nodes/[pubkey]/activity` - Get node activity periods (active/inactive)
 - `GET /api/nodes/[pubkey]/heatmap` - Get node activity heatmap data
+- `GET /api/nodes/[pubkey]/geolocation` - Get node geographic location data with history
+- `GET /api/geolocation` - Get all nodes geolocation data for world map
 - `POST /api/rpc` - Proxy for JSON-RPC calls
 
 ### Protected Endpoints (require CRON_SECRET)
@@ -290,6 +316,41 @@ The cleanup endpoint (`POST /api/cleanup`) should be called every 90 days to rem
 curl -X POST http://localhost:3000/api/cleanup \
   -H "Authorization: Bearer YOUR_CRON_SECRET"
 ```
+
+## Geolocation & World Map
+
+The platform includes automatic IP geolocation tracking to visualize the global distribution of network nodes.
+
+### How It Works
+
+1. **Automatic IP Detection**: When new node snapshots are created, the system extracts unique IP addresses from node addresses
+2. **Geolocation Lookup**: New IPs are automatically queried using the [ip-api.com](http://ip-api.com) free API
+3. **Data Storage**: Geographic coordinates, ISP info, and location details are cached in the `ip_geolocation` table
+4. **World Map Visualization**: The dashboard displays an interactive world map showing node distribution across countries
+
+### Rate Limiting
+
+The IP API integration respects the following limits:
+
+- **45 requests per minute** (free tier limit)
+- **100 IPs per batch request**
+- Automatic rate limiting and request spacing
+- Cached lookups to avoid redundant API calls
+
+### Features
+
+- **Global Node Distribution**: Interactive world map showing all node locations
+- **Country Statistics**: Node counts grouped by country with ISO codes
+- **Historical Tracking**: First seen and last seen timestamps for each location
+- **Node-Specific Maps**: Individual node detail pages show all geographic locations where that node has operated
+- **Smart Aggregation**: Multiple addresses from the same IP are intelligently grouped
+
+### Privacy & Data Source
+
+- Geolocation is performed on **IP addresses only** (no personal data)
+- Uses the free [ip-api.com](http://ip-api.com) service for lookups
+- Data includes: country, region, city, coordinates, ISP, and timezone
+- All data is cached locally to minimize external API calls
 
 ## Development
 
@@ -380,8 +441,9 @@ xandeum-analytics-ui/
 ├── app/
 │   ├── api/              # API routes
 │   │   ├── cleanup/      # Cleanup endpoint
+│   │   ├── geolocation/  # Global geolocation data
 │   │   ├── health/       # Health check
-│   │   ├── nodes/        # Node metrics, activity, heatmap
+│   │   ├── nodes/        # Node metrics, activity, heatmap, geolocation
 │   │   ├── pods/         # Pod data endpoints
 │   │   ├── rpc/          # RPC proxy
 │   │   └── snapshot/     # Snapshot creation
@@ -391,9 +453,12 @@ xandeum-analytics-ui/
 │   └── globals.css       # Global styles
 ├── components/
 │   ├── ui/               # shadcn/ui components
+│   │   └── world-map.tsx # World map visualization component
 │   ├── activity-timeline.tsx
 │   ├── activity-heatmap.tsx
 │   ├── downtime-report.tsx
+│   ├── node-world-map.tsx # Global nodes world map
+│   ├── node-location-map.tsx # Individual node location map
 │   └── chart-info-hover.tsx
 ├── config/
 │   └── endpoints.ts      # Xandeum RPC endpoints
@@ -406,6 +471,13 @@ xandeum-analytics-ui/
 ├── docs/
 │   └── METRICS_DOCUMENTATION.md  # Charts & calculations docs
 ├── hooks/                # React hooks
+│   ├── useNodes.ts
+│   ├── useNodeMetrics.ts
+│   ├── useNodeActivity.ts
+│   ├── useNodeHeatmap.ts
+│   ├── useNodesGeolocation.ts # Global geolocation data
+│   ├── useNodeGeolocation.ts  # Per-node geolocation
+│   └── index.ts
 ├── lib/
 │   └── utils.ts          # Utility functions
 ├── provider/             # React providers
@@ -443,11 +515,35 @@ This project is licensed under the MIT License.
 
 - **[Metrics Documentation](docs/METRICS_DOCUMENTATION.md)**: Comprehensive guide explaining all charts, calculations, and data sources used in the analytics platform.
 
-## Links
+## Links & Resources
+
+### Official Xandeum Links
 
 - **Xandeum Network**: [xandeum.network](https://xandeum.network)
+- **Xandeum Documentation**: [docs.xandeum.network](https://docs.xandeum.network)
 - **Xandeum Discord**: [discord.gg/uqRSmmM5m](https://discord.gg/uqRSmmM5m)
-- **Cron Bot Repository**: [GitHub Repository](https://github.com/Code-Parth/xandeum-analytics-cron-bot)
+
+### Project Links
+
+- **Live Analytics Dashboard**: [xandeum-analytics.vercel.app](https://xandeum-analytics.vercel.app) (if deployed)
+- **Cron Bot Repository**: [xandeum-analytics-cron-bot](https://github.com/Code-Parth/xandeum-analytics-cron-bot)
+- **Issue Tracker**: [GitHub Issues](https://github.com/Code-Parth/xandeum-analytics-ui/issues)
+
+### Technology Documentation
+
+- **Next.js 15**: [nextjs.org/docs](https://nextjs.org/docs)
+- **React 19**: [react.dev](https://react.dev)
+- **Drizzle ORM**: [orm.drizzle.team](https://orm.drizzle.team)
+- **TanStack Query**: [tanstack.com/query](https://tanstack.com/query)
+- **shadcn/ui**: [ui.shadcn.com](https://ui.shadcn.com)
+- **Tailwind CSS**: [tailwindcss.com](https://tailwindcss.com)
+
+### APIs & Services
+
+- **IP Geolocation API**: [ip-api.com](https://ip-api.com) - Free IP geolocation service
+  - Rate limit: 45 requests/minute
+  - Batch endpoint: 100 IPs per request
+  - Fields: country, region, city, coordinates, ISP, timezone
 
 ## Acknowledgments
 

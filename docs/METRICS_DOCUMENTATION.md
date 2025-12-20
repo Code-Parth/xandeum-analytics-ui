@@ -8,15 +8,20 @@ This document provides comprehensive information about all charts, metrics, and 
 - [Core Calculations](#core-calculations)
 - [Dashboard Metrics](#dashboard-metrics)
 - [Node Detail Page Metrics](#node-detail-page-metrics)
+- [Geographic Distribution](#geographic-distribution)
 - [Data Flow Architecture](#data-flow-architecture)
 
 ---
 
 ## Data Source
 
-All metrics are derived from the `pods_snapshot` table, which stores periodic snapshots of node states captured every minute via a cron job.
+The platform uses two main data sources:
 
-### Snapshot Fields
+### 1. `pods_snapshot` Table
+
+Stores periodic snapshots of node states captured every minute via a cron job.
+
+#### Snapshot Fields
 
 | Field                   | Type      | Description                                       |
 | ----------------------- | --------- | ------------------------------------------------- |
@@ -31,6 +36,38 @@ All metrics are derived from the `pods_snapshot` table, which stores periodic sn
 | `storage_usage_percent` | number    | Storage usage percentage                          |
 | `is_public`             | boolean   | Whether the node is publicly accessible           |
 | `rpc_port`              | number    | RPC port number                                   |
+
+### 2. `ip_geolocation` Table
+
+Stores geographic location data for unique IP addresses extracted from node addresses.
+
+#### Geolocation Fields
+
+| Field         | Type   | Description                                |
+| ------------- | ------ | ------------------------------------------ |
+| `ip`          | string | IP address (IPv4 or IPv6)                  |
+| `status`      | string | Lookup status ("success" or "fail")        |
+| `country`     | string | Country name                               |
+| `countryCode` | string | ISO country code (e.g., "US", "DE")        |
+| `region`      | string | Region/state code                          |
+| `regionName`  | string | Full region/state name                     |
+| `city`        | string | City name                                  |
+| `zip`         | string | ZIP/postal code                            |
+| `lat`         | number | Latitude coordinate                        |
+| `lon`         | number | Longitude coordinate                       |
+| `timezone`    | string | Timezone (e.g., "America/New_York")        |
+| `isp`         | string | Internet Service Provider name             |
+| `org`         | string | Organization name                          |
+| `asInfo`      | string | Autonomous System information              |
+| `createdAt`   | date   | When the geolocation data was first stored |
+
+**Data Source**: [ip-api.com](http://ip-api.com) - Free IP geolocation API
+
+**Rate Limits**:
+
+- 45 requests per minute
+- 100 IPs per batch request
+- Data is cached to minimize API calls
 
 ---
 
@@ -336,6 +373,185 @@ For each (day_of_week, hour) bucket:
 
 ---
 
+## Geographic Distribution
+
+The platform tracks and visualizes the geographic distribution of network nodes using IP geolocation data.
+
+### Node Geographic Distribution (World Map)
+
+**What it shows**: Interactive world map displaying the global distribution of all network nodes.
+
+**Location**: Dashboard main page
+
+**Data aggregation**:
+
+```
+For each unique IP address:
+  1. Extract IP from node address (IP:port format)
+  2. Lookup geolocation data (country, city, coordinates)
+  3. Group nodes by IP location
+  4. Track first seen and last seen timestamps
+  5. Count unique pubkeys per location
+```
+
+**Metrics displayed**:
+
+- **Total Nodes**: Unique count of pubkeys across all locations
+- **Total Locations**: Number of unique geographic locations (by IP)
+- **Countries**: Number of countries where nodes are present
+- **Top Countries**: Ranking by node count with IP count breakdowns
+
+**Visual elements**:
+
+- **Connection Lines**: Display connections between major node locations (max 20 connections)
+- **Location Markers**: Show geographic coordinates with node count labels
+- **Country Badges**: List top 10 countries with node and IP counts
+
+**Connection algorithm**:
+
+```
+1. Sort locations by node count (descending)
+2. For each location (max 20 connections):
+   - Find locations in different countries
+   - Create connection between them
+   - Skip if locations have same coordinates
+   - Avoid duplicate pairs
+3. Display as curved lines on world map
+```
+
+**Code Reference**: `components/node-world-map.tsx`, `components/ui/world-map.tsx`
+
+---
+
+### Node Location Map (Individual Node)
+
+**What it shows**: Geographic locations where a specific node has operated over time.
+
+**Location**: Individual node detail page
+
+**Data per location**:
+
+| Metric             | Description                                  |
+| ------------------ | -------------------------------------------- |
+| **IP Address**     | The IP where the node was seen               |
+| **Coordinates**    | Latitude and longitude                       |
+| **Location**       | City, region, country                        |
+| **ISP/Org**        | Internet service provider and organization   |
+| **First Seen**     | Earliest snapshot timestamp at this location |
+| **Last Seen**      | Most recent snapshot timestamp               |
+| **Snapshot Count** | Total snapshots captured from this IP        |
+
+**Calculation**:
+
+```sql
+For a given pubkey:
+  SELECT
+    address,
+    MIN(snapshot_timestamp) as first_seen,
+    MAX(snapshot_timestamp) as last_seen,
+    COUNT(*) as snapshot_count
+  FROM pods_snapshot
+  WHERE pubkey = :pubkey
+  GROUP BY address
+
+Then:
+  1. Extract unique IPs from addresses
+  2. Join with ip_geolocation table
+  3. Aggregate multiple ports from same IP
+  4. Merge first_seen (earliest) and last_seen (latest)
+  5. Sum snapshot_count per IP
+```
+
+**IP Aggregation Logic**:
+
+- Multiple addresses with same IP but different ports are merged
+- Coordinates and location info come from the IP (not port-specific)
+- Timestamps show the full time range the node was active from that IP
+- Snapshot count represents total observations across all ports
+
+**Code Reference**: `components/node-location-map.tsx`
+
+---
+
+### IP Extraction & Geolocation Process
+
+**How IP addresses are processed**:
+
+1. **Snapshot Creation** (`POST /api/snapshot`):
+   - New node snapshots are stored in `pods_snapshot` table
+   - Each snapshot includes `address` field (format: `IP:port`)
+
+2. **IP Extraction**:
+
+   ```
+   address = "192.168.1.100:8899"
+   ip = address.split(":")[0]  // "192.168.1.100"
+   ```
+
+3. **Deduplication Check**:
+
+   ```
+   Query ip_geolocation table for existing IP
+   If IP exists: Skip (data already cached)
+   If IP is new: Add to lookup queue
+   ```
+
+4. **Batch Geolocation Lookup**:
+
+   ```
+   Batch new IPs (max 100 per request)
+   POST to ip-api.com/batch with IP list
+   Wait for rate limit (45 requests/min)
+   Store results in ip_geolocation table
+   ```
+
+5. **Data Caching**:
+   - Each IP is looked up **only once**
+   - Results are permanently cached in database
+   - Future snapshots from same IP use cached data
+
+**Rate Limiting Strategy**:
+
+- Track request timestamps in memory
+- Maximum 45 requests per 60-second window
+- Minimum ~1334ms delay between requests
+- Automatic wait/retry if limit is approached
+- Graceful handling of 429 (rate limit exceeded) responses
+
+**Code Reference**: `services/ip-geolocation.service.ts`
+
+---
+
+### Geographic Distribution Metrics
+
+**Country Statistics**:
+
+```
+For each country:
+  unique_ips = count(distinct IP addresses in that country)
+  total_nodes = count(distinct pubkeys from IPs in that country)
+
+Display format: "US: 15 nodes (8 IPs)"
+```
+
+**Time Range Metadata**:
+
+```
+earliest_first_seen = MIN(first_seen) across all locations
+latest_last_seen = MAX(last_seen) across all locations
+
+This shows the full time span of geographic data collection
+```
+
+**Data Coverage**:
+
+- Geographic data is **cumulative and historical**
+- Once a node is seen at a location, that location is tracked forever
+- `firstSeen` and `lastSeen` show when the node was active at each location
+- Nodes may appear in multiple locations if they've moved IPs
+
+---
+
 ## Data Flow Architecture
 
 ```
@@ -350,39 +566,53 @@ For each (day_of_week, hour) bucket:
 │                          POST /api/snapshot                      │
 └──────────────────────────────────────────────────────────────────┘
                                    │
-                                   ▼
-┌──────────────────────────────────────────────────────────────────┐
-│                   PostgreSQL DATABASE                            │
-│                    pods_snapshot table                           │
-│  ┌────────────────────────────────────────────────────────────┐  │
-│  │ id | address | pubkey | last_seen | snapshot_time | ...    │  │
-│  └────────────────────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────────┘
+                    ┌──────────────┴──────────────┐
+                    ▼                             ▼
+┌──────────────────────────────────┐  ┌──────────────────────────┐
+│     PostgreSQL DATABASE          │  │   IP Geolocation         │
+│     pods_snapshot table          │  │   Service                │
+│  ┌────────────────────────────┐  │  │  (ip-api.com)            │
+│  │ id | address | pubkey |... │  │  │  Rate limit: 45 req/min  │
+│  └────────────────────────────┘  │  └──────────────────────────┘
+└──────────────────────────────────┘              │
+                    │                             ▼
+                    │              ┌──────────────────────────────┐
+                    │              │  PostgreSQL DATABASE         │
+                    │              │  ip_geolocation table        │
+                    │              │  ┌──────────────────────┐    │
+                    │              │  │ ip | lat | lon | ... │    │
+                    │              │  └──────────────────────┘    │
+                    │              └──────────────────────────────┘
+                    │                             │
+                    └──────────────┬──────────────┘
                                    │
-               ┌───────────────────┼───────────────────┐
-               │                   │                   │
-               ▼                   ▼                   ▼
-     ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
-     │    /api/pods/   │ │   /api/nodes/   │ │   /api/nodes/   │
-     │      latest     │ │    [pubkey]/    │ │    [pubkey]/    │
-     │                 │ │     metrics     │ │    activity     │
-     └─────────────────┘ └─────────────────┘ └─────────────────┘
-               │                   │                   │
-               ▼                   ▼                   ▼
-     ┌─────────────────┐ ┌──────────────────┐ ┌───────────────────┐
-     │    useNodes()   │ │ useNodeMetrics() │ │ useNodeActivity() │
-     │                 │ │                  │ │ useNodeHeatmap()  │
-     └─────────────────┘ └──────────────────┘ └───────────────────┘
-               │                   │                   │
-               └───────────────────┼───────────────────┘
+         ┌─────────────────────────┼─────────────────────────┐
+         │                         │                         │
+         ▼                         ▼                         ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────────┐
+│  /api/pods/     │    │  /api/nodes/    │    │ /api/geolocation    │
+│    latest       │    │   [pubkey]/     │    │ /api/nodes/         │
+│  /api/pods/     │    │    metrics      │    │  [pubkey]/          │
+│    history      │    │    activity     │    │  geolocation        │
+│                 │    │    heatmap      │    │                     │
+└─────────────────┘    └─────────────────┘    └─────────────────────┘
+         │                         │                         │
+         ▼                         ▼                         ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────────┐
+│  useNodes()     │    │ useNodeMetrics()│    │ useNodesGeolocation()│
+│  useNetworkStats│    │ useNodeActivity()│   │ useNodeGeolocation() │
+│                 │    │ useNodeHeatmap() │   │                     │
+└─────────────────┘    └─────────────────┘    └─────────────────────┘
+         │                         │                         │
+         └─────────────────────────┼─────────────────────────┘
                                    │
                                    ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │                         REACT COMPONENTS                         │
-│        ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐       │
-│        │Dashboard │ │ Node     │ │ Activity │ │ Downtime │       │
-│        │ Charts   │ │ Metrics  │ │ Heatmap  │ │ Report   │       │
-│        └──────────┘ └──────────┘ └──────────┘ └──────────┘       │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────┐ │
+│  │Dashboard │ │ Node     │ │ Activity │ │ Downtime │ │ World  │ │
+│  │ Charts   │ │ Metrics  │ │ Heatmap  │ │ Report   │ │ Map    │ │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘ └────────┘ │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -390,13 +620,16 @@ For each (day_of_week, hour) bucket:
 
 ## API Endpoints Reference
 
-| Endpoint                       | Method | Description                    |
-| ------------------------------ | ------ | ------------------------------ |
-| `/api/pods/latest`             | GET    | Latest snapshot for all nodes  |
-| `/api/pods/history`            | GET    | Historical network statistics  |
-| `/api/nodes/[pubkey]/metrics`  | GET    | Node-specific snapshot history |
-| `/api/nodes/[pubkey]/activity` | GET    | Activity periods per address   |
-| `/api/nodes/[pubkey]/heatmap`  | GET    | Activity heatmap data          |
+| Endpoint                          | Method | Description                                |
+| --------------------------------- | ------ | ------------------------------------------ |
+| `/api/pods/latest`                | GET    | Latest snapshot for all nodes              |
+| `/api/pods/history`               | GET    | Historical network statistics              |
+| `/api/nodes/[pubkey]/metrics`     | GET    | Node-specific snapshot history             |
+| `/api/nodes/[pubkey]/activity`    | GET    | Activity periods per address               |
+| `/api/nodes/[pubkey]/heatmap`     | GET    | Activity heatmap data                      |
+| `/api/nodes/[pubkey]/geolocation` | GET    | Node geographic locations with history     |
+| `/api/geolocation`                | GET    | All nodes geolocation data for world map   |
+| `/api/snapshot`                   | POST   | Create snapshot (protected, requires auth) |
 
 ### Query Parameters
 
@@ -412,15 +645,20 @@ For each (day_of_week, hour) bucket:
 
 ## Glossary
 
-| Term         | Definition                                               |
-| ------------ | -------------------------------------------------------- |
-| **Latency**  | Time since node was last seen responding                 |
-| **Snapshot** | Point-in-time capture of all node states                 |
-| **Gap**      | Period when node was missing from snapshots (>5 min)     |
-| **MTTR**     | Mean Time To Recovery - average incident duration        |
-| **Uptime**   | Percentage of time node was active over 30 days          |
-| **Active**   | Node responding within 120 seconds                       |
-| **Inactive** | Node not seen for >300 seconds or missing from snapshots |
+| Term               | Definition                                                       |
+| ------------------ | ---------------------------------------------------------------- |
+| **Latency**        | Time since node was last seen responding                         |
+| **Snapshot**       | Point-in-time capture of all node states                         |
+| **Gap**            | Period when node was missing from snapshots (>5 min)             |
+| **MTTR**           | Mean Time To Recovery - average incident duration                |
+| **Uptime**         | Percentage of time node was active over 30 days                  |
+| **Active**         | Node responding within 120 seconds                               |
+| **Inactive**       | Node not seen for >300 seconds or missing from snapshots         |
+| **Geolocation**    | Geographic coordinates and location info derived from IP         |
+| **IP Aggregation** | Merging multiple addresses with the same IP but different ports  |
+| **Location**       | Unique geographic point defined by IP address                    |
+| **First Seen**     | Earliest timestamp a node was observed at a specific location    |
+| **Last Seen**      | Most recent timestamp a node was observed at a specific location |
 
 ---
 
@@ -428,10 +666,47 @@ For each (day_of_week, hour) bucket:
 
 For implementation details, see:
 
+### Core Services
+
 - **Status Detection**: `services/api.service.ts`
 - **Activity Periods**: `services/pods-db.service.ts` → `getNodeActivityPeriods()`
 - **Heatmap Data**: `services/pods-db.service.ts` → `getNodeActivityHeatmap()`
 - **Network Stats**: `services/pods-db.service.ts` → `getNetworkHistory()`
-- **Types**: `types/index.ts`
+- **IP Geolocation**: `services/ip-geolocation.service.ts`
+  - `extractIp()` - Extract IP from address string
+  - `getNewIps()` - Check for IPs not yet in database
+  - `fetchGeolocationBatch()` - Batch fetch from ip-api.com
+  - `storeGeolocation()` - Cache results in database
+  - `getAllNodesWithGeolocation()` - Get all nodes with location data
+  - `getNodeLocationsWithHistory()` - Get locations for specific node
+
+### React Components
+
+- **World Map**: `components/node-world-map.tsx`, `components/ui/world-map.tsx`
+- **Node Location**: `components/node-location-map.tsx`
+- **Activity Heatmap**: `components/activity-heatmap.tsx`
+- **Activity Timeline**: `components/activity-timeline.tsx`
+- **Downtime Report**: `components/downtime-report.tsx`
+
+### React Hooks
+
+- **Geolocation**: `hooks/useNodesGeolocation.ts`, `hooks/useNodeGeolocation.ts`
+- **Activity**: `hooks/useNodeActivity.ts`, `hooks/useNodeHeatmap.ts`
+- **Metrics**: `hooks/useNodeMetrics.ts`, `hooks/useNodes.ts`
+
+### Database Schema
+
+- **Tables**: `db/schema.ts` - `podsSnapshot`, `ipGeolocation`
+- **Migrations**: `db/migrations/` - Database migration files
+
+### API Routes
+
+- **Geolocation Endpoints**: `app/api/geolocation/route.ts`, `app/api/nodes/[pubkey]/geolocation/route.ts`
+- **Node Endpoints**: `app/api/nodes/[pubkey]/metrics/route.ts`, `app/api/nodes/[pubkey]/activity/route.ts`
+- **Snapshot**: `app/api/snapshot/route.ts`
+
+### Types
+
+- **TypeScript Definitions**: `types/index.ts` - All type definitions including geolocation types
 
 ---
