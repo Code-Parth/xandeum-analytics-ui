@@ -872,6 +872,98 @@ export default function DashboardPage() {
           />
         </CardContent>
       </Card>
+
+      <Separator />
+
+      {/* Footer */}
+      <footer className="border-t pt-6">
+        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <Image
+                src="/logo.png"
+                alt="Xandeum Logo"
+                width={24}
+                height={24}
+                className="h-6 w-6"
+              />
+              <span className="font-semibold">Xandeum Network Analytics</span>
+            </div>
+            <p className="text-muted-foreground text-sm">
+              Real-time monitoring and analytics for the Xandeum network
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-4 md:flex-row md:gap-8">
+            <div className="flex flex-col gap-2">
+              <h3 className="text-sm font-semibold">Resources</h3>
+              <div className="flex flex-col gap-1.5 text-sm">
+                <a
+                  href="https://github.com/Code-Parth/xandeum-analytics-ui"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-foreground transition-colors">
+                  GitHub Repository
+                </a>
+                <a
+                  href="https://github.com/Code-Parth/xandeum-analytics-ui/blob/main/docs/METRICS_DOCUMENTATION.md"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-foreground transition-colors">
+                  Metrics Documentation
+                </a>
+                <a
+                  href="https://github.com/Code-Parth/xandeum-analytics-cron-bot"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-foreground transition-colors">
+                  Cron Bot Repository
+                </a>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <h3 className="text-sm font-semibold">Xandeum Network</h3>
+              <div className="flex flex-col gap-1.5 text-sm">
+                <a
+                  href="https://xandeum.network"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-foreground transition-colors">
+                  Official Website
+                </a>
+                <a
+                  href="https://docs.xandeum.network"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-foreground transition-colors">
+                  Documentation
+                </a>
+                <a
+                  href="https://discord.gg/uqRSmmM5m"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-foreground transition-colors">
+                  Discord Community
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 border-t pt-6">
+          <p className="text-muted-foreground text-center text-xs">
+            Built for the Xandeum Labs analytics platform challenge on{" "}
+            <a
+              href="https://earn.superteam.fun"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-foreground underline transition-colors">
+              Superteam Earn
+            </a>
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
